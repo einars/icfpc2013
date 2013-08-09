@@ -15,4 +15,5 @@
   val expr_to_s : expr -> string
   val program_to_s : program -> string
 
-  (* helpers *)
+  val eval : program -> int64 -> int64
+  val eval_s : string -> int64 -> int64

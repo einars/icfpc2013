@@ -30,6 +30,7 @@ let sample_parsed_3:program =
   (Not (Or (E_0, Identifier "x_3626")))
 
 
+let complicated_prg = "(lambda (x_71206) (fold (or (if0 (shl1 (not (and 1 (and (not (shr4 (or (xor (shr1 0) (shr4 0)) 1))) x_71206)))) x_71206 x_71206) 0) x_71206 (lambda (x_71207 x_71208) (plus (shr1 x_71207) x_71208))))"
 
 let run_tests () =
 
@@ -46,11 +47,9 @@ let run_tests () =
     assert_eq (Helpers.starting_from "saule" 10) "";
     Printf.printf "Basic tests passed.\n%!";
     assert_eq_parse sample_program_1 sample_parsed_1;
-    Printf.printf "1 ok.\n%!";
     assert_eq_parse sample_program_2 sample_parsed_2;
-    Printf.printf "2 ok.\n%!";
     assert_eq_parse sample_program_3 sample_parsed_3;
-    Printf.printf "3 ok.\n%!";
+    assert_eq complicated_prg (Program.program_to_s (Program.parse complicated_prg));
     Printf.printf "Parsing tests passed.\n%!";
     true
   ) with Assertion_failed -> false

@@ -184,8 +184,41 @@ let rec expr_to_s = function
   | Xor (e1, e2) -> Printf.sprintf "(%s %s %s)" "xor" (expr_to_s e1) (expr_to_s e2)
   | Plus (e1, e2) -> Printf.sprintf "(%s %s %s)" "plus" (expr_to_s e1) (expr_to_s e2)
 
-let program_to_s p = match p with
-| id, e ->
-    Printf.sprintf "(lambda (%s) %s)"
-      id
-      (expr_to_s e)
+let program_to_s (id, e) = Printf.sprintf "(lambda (%s) %s)" id (expr_to_s e)
+
+module Bindings = Map.Make(String)
+
+let rec eval_expr e bindings = match e with
+  | E_0 -> Int64.zero
+  | E_1 -> Int64.one
+  | Identifier id -> Bindings.find id bindings
+  | If0 (e1, e2, e3) -> eval_expr (if eval_expr e1 bindings = Int64.zero then e2 else e3) bindings
+  | Not e -> Int64.lognot (eval_expr e bindings)
+  | Shl1 e -> Int64.shift_left (eval_expr e bindings) 1
+  | Shr1 e -> Int64.shift_right_logical (eval_expr e bindings) 1
+  | Shr4 e -> Int64.shift_right_logical (eval_expr e bindings) 4
+  | Shr16 e -> Int64.shift_right_logical (eval_expr e bindings) 16
+  | And (e1, e2) -> Int64.logand (eval_expr e1 bindings) (eval_expr e2 bindings)
+  | Or (e1, e2) -> Int64.logor (eval_expr e1 bindings) (eval_expr e2 bindings)
+  | Xor (e1, e2) -> Int64.logxor (eval_expr e1 bindings) (eval_expr e2 bindings)
+  | Plus (e1, e2) -> Int64.add (eval_expr e1 bindings) (eval_expr e2 bindings)
+  | Fold (e_to_fold, e_initial, id1, id2, e_fold) -> (
+      let v_run = ref (eval_expr e_to_fold bindings) in
+      let v_result = ref (eval_expr e_initial bindings) in
+      for i = 1 to 8 do
+        let new_bindings = bindings in
+        let new_bindings = Bindings.add id1 (Int64.logand !v_run (Int64.of_int 0xff))  new_bindings in
+        let new_bindings = Bindings.add id2 !v_result new_bindings in
+        let res = eval_expr e_fold new_bindings in
+        v_run := Int64.shift_right !v_run 8;
+        v_result := res;
+      done;
+      !v_result
+  )
+
+let eval p param =
+  let id, exp = p in
+  let bindings = Bindings.add id param Bindings.empty in
+  eval_expr exp bindings
+
+let eval_s p param = eval (parse p) param

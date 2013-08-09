@@ -3,19 +3,21 @@
 open Printf
 open Program
 
+let run_with (vals:int64 list) (program_source:string) =
+  let parsed = Program.parse program_source in
+  List.iter (fun n -> printf "%16Lx -> %16Lx\n" n (Program.eval parsed n)) vals
+
+
 let _ =
 
   if Tester.run_tests() then begin
 
-    let complicated_prg = "(lambda (x_71206) (fold (or (if0 (shl1 (not (and 1 (and (not (shr4 (or (xor (shr1 0) (shr4 0)) 1))) x_71206)))) x_71206 x_71206) 0) x_71206 (lambda (x_71207 x_71208) (plus (shr1 x_71207) x_71208))))" in
-    let parse_tree = Program.parse complicated_prg in
+    run_with [1L; 2L; 3L; 4L; 5L]
+      "(lambda (x_17550) (xor (shr1 (and (if0 (and (xor (shr1 x_17550) 0) x_17550) x_17550 x_17550) x_17550)) x_17550))";
 
-    printf "%s\n%!" (Program.program_to_s parse_tree);
-    printf "%s\n%!" (complicated_prg);
-
-    if complicated_prg = (Program.program_to_s parse_tree) then printf "This if fucking exquisite!\n%!";
-
-    printf "raging mushrooms!";
+     run_with [0xffffffffffffffffL]
+      "(lambda (x_60455) (fold (shl1 1) x_60455 (lambda (x_60456 x_60457) (shr1 (plus (and (and (shr1 (xor (if0 (shr16 (or (not x_60456) x_60456)) x_60456 x_60456) x_60457)) x_60457) x_60457) x_60457)))))";
+    (* printf "raging mushrooms!\n"; *)
 
   end
 
