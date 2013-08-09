@@ -1,7 +1,12 @@
-SOURCES = src/helpers.ml src/program.ml src/tester.ml src/main.ml
+SOURCES = src/helpers.ml src/server.ml src/program.ml src/tester.ml src/main.ml
 RESULT = bleach
 
+PACKS = netclient extlib yojson
+#INCDIRS = ~/.opam/system/lib/ocamlnet
+
 .SILENT:
+
+all: native-code
 
 -include OCamlMakefile
 

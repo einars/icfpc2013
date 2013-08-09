@@ -45,11 +45,10 @@ let run_tests () =
     assert_eq (Helpers.starting_from "saule" 0) "saule";
     assert_eq (Helpers.starting_from "saule" 1) "aule";
     assert_eq (Helpers.starting_from "saule" 10) "";
-    Printf.printf "Basic tests passed.\n%!";
     assert_eq_parse sample_program_1 sample_parsed_1;
     assert_eq_parse sample_program_2 sample_parsed_2;
     assert_eq_parse sample_program_3 sample_parsed_3;
     assert_eq complicated_prg (Program.program_to_s (Program.parse complicated_prg));
-    Printf.printf "Parsing tests passed.\n%!";
+    Helpers.say "Parsing tests passed.";
     true
   ) with Assertion_failed -> false
