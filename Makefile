@@ -1,4 +1,4 @@
-SOURCES = src/program.ml src/tester.ml src/main.ml
+SOURCES = src/helpers.ml src/program.ml src/tester.ml src/main.ml
 RESULT = bleach
 
 .SILENT:
