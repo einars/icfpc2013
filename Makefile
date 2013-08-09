@@ -14,3 +14,5 @@ all: native-code
 run:
 	./bleach
 
+prune:
+	find cache -type f -mtime '-5' -print -delete

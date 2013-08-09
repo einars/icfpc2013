@@ -51,7 +51,7 @@ let json_get_string json_obj search_key =
 
 let json_get_string_list json_obj search_key =
   let rec eat_strings accum = function
-    | `String foo :: rest -> eat_strings (foo :: accum) rest
+    | `String foo :: rest -> eat_strings (List.append accum [foo]) rest
     | _ :: rest -> eat_strings accum rest
     | [] -> accum
   in
@@ -66,3 +66,6 @@ let json_get_int json_obj search_key =
   | `Int s -> s
   | _ -> 0
 
+
+let json_list_of_strings sl =
+  `List (List.map (fun n -> `String n) sl)

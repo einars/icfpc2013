@@ -28,6 +28,19 @@ let _ =
       Helpers.say "id        = %s" te.id;
       Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
 
+      let inputs = [ 0x0123456789abcdefL; 0xfedcba9876543210L; 0xfedcba9876543210L; ] in
+      let outputs = Server.get_eval ~use_cached_copy:true te.id inputs in
+      Helpers.say "Inputs:  %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") inputs));
+      Helpers.say "Outputs: %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") outputs));
+      Helpers.say "Guess results: %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") outputs));
+
+      let challenge = Program.parse te.challenge in
+      List.iter2 (fun guess expected ->
+        let got = Program.eval challenge guess in
+        if got <> expected
+          then Helpers.say "Challenge self-check failed: input %016Lx expected %016Lx got %016Lx" guess expected got;
+      ) inputs outputs;
+
     end;
 
     if op = "status" then begin
