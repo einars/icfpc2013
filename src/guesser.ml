@@ -178,10 +178,8 @@ let rec smart_iterate_problemspace desc verify_fn : unit =
       if r = -1 then if context.allow_const && context.allow_zero then (builder_f E_0 nptr);
       if r = -2 then if context.allow_const then (builder_f E_1 nptr);
       if r = -3 then ( builder_f (Identifier "x") nptr );
-      if r = -3 && context.inside_fold then begin
-        (builder_f (Identifier "y1") nptr );
-        (builder_f (Identifier "y2") nptr );
-      end;
+      if (r = -4 && context.inside_fold) then ( builder_f (Identifier "y1") nptr );
+      if (r = -5 && context.inside_fold) then ( builder_f (Identifier "y2") nptr );
 
       if r >= 0 then begin
         (* let op = desc.operators.(r) in *)
@@ -273,14 +271,14 @@ let rec smart_iterate_problemspace desc verify_fn : unit =
         try do_expr i with Nuff -> ()
       done
       *)
-      for i = 1 to (* n_ops - ptr + *) 2 do
-        try do_expr ((Random.int (n_ops + 3)) - 3) with Nuff -> ();
+      for i = 1 to (* n_ops - ptr + *) 3 do
+        try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
       done
 
   in
 
   while true do
-      ttl := 50000;
+      ttl := 5000;
       try
         (* with_matching_exprs 0 default_guess_context (fun e nptr -> rot() ; Helpers.say "%s" (Program.to_s ("x", e)); if nptr > 1 then verify_fn ("x", e)); *)
         with_matching_exprs 0 default_guess_context (fun e nptr -> if nptr > 1 then ( rot(); verify_fn ("x", e)));
@@ -307,7 +305,7 @@ let do_your_thing desc =
     if List.for_all2 (fun a b -> Program.eval some_guess a = b) !inputs !outputs then (
       let new_guess, new_result = improve_via_server_guess desc some_guess in
       inputs := new_guess :: !inputs;
-      outputs := new_guess :: !outputs;
+      outputs := new_result :: !outputs;
     )
   in
 
