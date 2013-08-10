@@ -1,5 +1,7 @@
 ./bleach
 
+web/problems
+
 **.o
 **.cmx
 **.cmo

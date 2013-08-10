@@ -32,7 +32,7 @@ let build_program size allowed_ops dna =
     if ptr > size then raise Nuff;
 
     let n_ops = List.length allowed_ops in
-    let adj = if context.inside_fold then 5 else 3 in
+    let adj = if context.inside_fold then 4 else 3 in
     let r = dna.(ptr) mod (n_ops + adj) - adj in
     let nptr = ptr + 1 in
 
@@ -40,8 +40,7 @@ let build_program size allowed_ops dna =
 
     (* Helpers.say "%d" r; *)
 
-    if r = -5 then if context.inside_fold then Identifier "y1", nptr else raise Nuff
-    else if r = -4 then if context.inside_fold then Identifier "y2", nptr else raise Nuff
+    if r = -4 then if context.inside_fold then Identifier "y", nptr else raise Nuff
     else if r = -3 then if context.skip_zero then raise Nuff else E_0, nptr
     else if r = -2 then E_1, nptr
     else if r = -1 then Identifier "x", nptr
@@ -61,7 +60,12 @@ let build_program size allowed_ops dna =
         let e1, nptr = get_expr context nptr in
         let e2, nptr = get_expr context nptr in
         let e3, nptr = get_expr { context with inside_fold = true } nptr in
-        Fold (e1, e2, "y1", "y2", e3), nptr
+        Fold (e1, e2, "x", "y", e3), nptr
+    else if op = "tfold" then if context.inside_fold then raise Nuff
+      else
+        let e1, nptr = get_expr context nptr in
+        let e3, nptr = get_expr { context with inside_fold = true } nptr in
+        Fold (e1, E_0, "x", "y", e3), nptr
     else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr in (Shl1 e1), nptr
     else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr in (Shr1 e1), nptr
     else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr in (Shr4 e1), nptr
@@ -127,15 +131,15 @@ let suitable_first_inputs () =
   append_random base 50
 
 let start size ops id =
-  let firsts = suitable_first_inputs () in
+  let initial_inputs = if id = "" then [] else suitable_first_inputs () in
 
   { available_ops = ops
   ; program_id = id
   ; program_size = size
   ; guesses = []
   (* ; guesses = (initial_guesses size) *)
-  ; inputs = if id = "" then [] else firsts
-  ; outputs = if id = "" then [] else Server.get_eval id firsts
+  ; inputs = initial_inputs
+  ; outputs = Server.get_eval id initial_inputs
   }
 
 

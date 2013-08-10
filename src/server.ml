@@ -93,14 +93,9 @@ let get_status ?(use_cached_copy=true) () =
   ; num_requests = nr }
 
 
-  (*
-let handle_http_error f ->
-  try f() with (Http_client.Http_protocol p) -> 
-    *)
+let get_training ?(use_cached_copy:bool = true) size =
 
-let get_training ?(use_cached_copy:bool = true) ?(size:int=5) ?(operators:string list=[]) () =
-
-  let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in
+  let req_json = sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size in
   (* let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in *)
   Helpers.say "%s" req_json;
 
@@ -115,18 +110,22 @@ let get_training ?(use_cached_copy:bool = true) ?(size:int=5) ?(operators:string
 
 let get_eval ?(use_cached_copy:bool=true) id params =
 
-  let req_json = Yojson.Safe.to_string( `Assoc
-    [ ("id", `String id)
-    ; ("arguments", Helpers.json_list_of_strings (List.map (fun x -> sprintf "0x%016Lx" x) params))
-    ]) in
-  let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/eval?auth=%s" !key) req_json in
-  let parsed = Yojson.Safe.from_string status_json in
+  if params = [] || id = "" then []
+  else begin
+    let req_json = Yojson.Safe.to_string( `Assoc
+      [ ("id", `String id)
+      ; ("arguments", Helpers.json_list_of_strings (List.map (fun x -> sprintf "0x%016Lx" x) params))
+      ]) in
+    let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/eval?auth=%s" !key) req_json in
+    let parsed = Yojson.Safe.from_string status_json in
 
-  let status = Helpers.json_get_string parsed "status"
-  and message = Helpers.json_get_string parsed "message" in
-  if status <> "ok" then raise (Eval_failed message);
+    let status = Helpers.json_get_string parsed "status"
+    and message = Helpers.json_get_string parsed "message" in
+    if status <> "ok" then raise (Eval_failed message);
 
-  List.map Int64.of_string (Helpers.json_get_string_list parsed "outputs")
+    List.map Int64.of_string (Helpers.json_get_string_list parsed "outputs");
+  end
+
 
 
 let guess ?(use_cached_copy:bool=true) id program_source =

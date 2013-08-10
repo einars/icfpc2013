@@ -24,9 +24,7 @@ let _ =
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
     let rec oompaloompa box =
-      Helpers.say "solving...";
       let best = Guesser.solve box in
-      Helpers.say "reiterating...";
       let box = Guesser.step2 box best in
       oompaloompa box
     in
@@ -34,22 +32,15 @@ let _ =
     if op = "ouch" then begin
       (* oompaloompa (Guesser.start 5 ["shl1"; "xor"] "0UTVqJH86wBbJljF2shldH1A") *)
       (* oompaloompa (Guesser.start 8 ["or"; "plus"; "shl1"; "shr16"] "0WnMyvJVhmCAOiaZREBsMiWs") *)
-      oompaloompa (Guesser.start 22 ["if0"; "not"; "or"; "plus"; "shl1"; "shr1"; "shr16"; "xor"] "zHsDD05sZUSBROeuEnKGUAkj")
+      (* oompaloompa (Guesser.start 22 ["if0"; "not"; "or"; "plus"; "shl1"; "shr1"; "shr16"; "xor"] "zHsDD05sZUSBROeuEnKGUAkj") *)
+      (* oompaloompa (Guesser.start 11 ["fold"; "not"; "shr1"; "shr16"; "xor"] "02biTMAo9m60zbZxZfUjkuAM") *)
+      (* oompaloompa (Guesser.start 8 ["or"; "plus"] "0awKUJaqmczw11R2pfIE2X3K") *)
 
-    end;
-
-    if op = "run5" then begin
-      let base = Program.parse "(lambda (x) (xor (shl1 x) x))" in
-      let box = Guesser.start 5 ["shl1"; "xor" ] "" in
-      box.inputs <- [ 0x6666666666666666L; 0xfedcba9876543210L; 0x0123456789abcdefL; 0x0101010101010101L ];
-      box.outputs <- List.map (Program.eval base) box.inputs;
-
-      Helpers.say "Solved %s" (Program.program_to_s (Guesser.solve box));
     end;
 
 
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true ~size:16 () in
+      let te = Server.get_training ~use_cached_copy:true 18 in
       Helpers.say "challenge = %s" te.challenge;
       Helpers.say "size      = %d" te.size;
       Helpers.say "id        = %s" te.id;
@@ -57,28 +48,6 @@ let _ =
       oompaloompa (Guesser.start te.size te.operators te.id)
     end;
 
-
-    if op = "train" then begin
-      let te = Server.get_training ~use_cached_copy:true ~size:25 () in
-      Helpers.say "challenge = %s" te.challenge;
-      Helpers.say "size      = %d" te.size;
-      Helpers.say "id        = %s" te.id;
-      Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
-
-      let inputs = Guesser.suitable_first_inputs () in
-      let outputs = Server.get_eval ~use_cached_copy:true te.id inputs in
-      Helpers.say "Inputs:  %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") inputs));
-      Helpers.say "Outputs: %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") outputs));
-      Helpers.say "Guess results: %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") outputs));
-
-      let challenge = Program.parse te.challenge in
-      List.iter2 (fun guess expected ->
-        let got = Program.eval challenge guess in
-        if got <> expected
-          then Helpers.say "Challenge self-check failed: input %016Lx expected %016Lx got %016Lx" guess expected got;
-      ) inputs outputs;
-
-    end;
 
     if op = "status" then begin
       let st = Server.get_status ~use_cached_copy:false () in
