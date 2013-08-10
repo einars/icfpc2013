@@ -55,12 +55,18 @@ echo '<div class="status">';
 
 $max_coolness = 0;
 $our_coolness = 0;
+$our_crappiness = 0;
 foreach($probs->all as $prob) $max_coolness += $prob['size'];
 foreach($probs->solved as $prob) $our_coolness += $prob['size'];
+foreach($probs->failed as $prob) $our_crappiness += 1; //$prob['size'];
 
-printf('<div class="percentage"><b>%.1f</b><span>﹪</span>, coolness: <b>%.1f</b><span>﹪</span></div>', 
+printf('<div class="percentage"><table><tr><th rowspan="2">%.1f<span>%%</span></th><td>
+    coolness:<br>crappiness:</td><td style="text-align:right"><b>%.1f</b><span>%%</span><br><b>%.1f</b><span>%%</span>
+    </td></tr></table>
+    </div>',
     sizeof($probs->solved) * 100 / $probs->n_total,
-    $our_coolness * 100 / $max_coolness
+    $our_coolness * 100 / $max_coolness,
+    $our_crappiness * 100 / $probs->n_total
 );
 printf('<form method="post" action="?"><input type="hidden" name="update" value="yes"><button type="submit">Refresh from ICFP server (%s, %d min ago)</button></form>',
     date('H:i', filectime('problems/current.js')), (time() - filectime('problems/current.js')) / 60 );
@@ -86,10 +92,10 @@ printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold:
     , sizeof($probs->bonus)
 );
 echo '</div>';
-echo '<h2 id="fold">fold problems</h2>';
-print_problems($probs->fold, 'p-fold');
 echo '<h2 id="simple">Simple problems</h2>';
 print_problems($probs->simple, 'p-simple');
+echo '<h2 id="fold">fold problems</h2>';
+print_problems($probs->fold, 'p-fold');
 echo '<h2 id="tfold">Tfold problems</h2>';
 print_problems($probs->tfold, 'p-tfold');
 echo '<h2 id="bonus">Bonus problems</h2>';
@@ -227,11 +233,23 @@ div.status {
 .percentage {
     position: absolute;
     left: 500px;
-    font-size: 24px;
     background: #933;
     color: white;
     border-radius: 10px;
     padding: 10px;
+}
+.percentage th {
+    font-size: 24px;
+    color: white;
+    padding: 0 10px;
+}
+.percentage td {
+    color: white;
+    padding: 0 5px;
+}
+.percentage p{
+    font-size: 16px;
+    text-align: right;
 }
 div.status form {
     float: right;
@@ -249,6 +267,9 @@ table.problems td {
     font-size: 14px;
 }
 table.p-tfold td {
+    border-top: 1px solid #dfd;
+}
+table.p-tfold .sep td {
     border-top: 1px solid #9c9;
 }
 h2 {
@@ -284,8 +305,11 @@ h2#simple {
     color: white;
 }
 
-table.p-bonus td {
+table.p-bonus .sep td {
     border-top: 1px solid #cc9;
+}
+table.p-bonus td {
+    border-top: 1px solid #ffd;
 }
 
 h2#bonus {
