@@ -23,13 +23,18 @@ let _ =
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true ~size:8 () in
+      let te = Server.get_training ~use_cached_copy:true ~size:20 () in
       Helpers.say "challenge = %s" te.challenge;
       Helpers.say "size      = %d" te.size;
       Helpers.say "id        = %s" te.id;
       Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
 
-      let box = Guesser.start te.size te.operators te.id in Guesser.solve box;
+      let rec oompaloompa box =
+        let best = Guesser.solve box in
+        let box = Guesser.step2 box best in
+        oompaloompa box
+      in
+      oompaloompa (Guesser.start te.size te.operators te.id)
 
     end;
 

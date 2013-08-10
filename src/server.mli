@@ -19,3 +19,5 @@ val get_training : ?use_cached_copy:bool -> ?size:int -> ?operators:string list 
 exception Eval_failed of string
 
 val get_eval : ?use_cached_copy:bool -> string -> int64 list -> int64 list
+val guess : ?use_cached_copy:bool -> string -> string -> int64 * int64
+

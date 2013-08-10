@@ -109,15 +109,19 @@ let solve guessbox =
   Helpers.say "inputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.inputs));
   Helpers.say "outputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.outputs));
 
+  try (
   while true do
     let g = (build_program guessbox.size (good_random_guess guessbox.size).dna) in
     (* Helpers.say "checking %s" (Program.program_to_s g); *)
-    try
-      List.iter2 (fun a b -> if Program.eval g a <> b then raise Nuff) guessbox.inputs guessbox.outputs;
-      Helpers.say "have a solution %s" (Program.program_to_s g);
-      raise (Solved g);
-    with Nuff -> ();
-  done
+    if List.for_all2 (fun a b -> Program.eval g a = b) guessbox.inputs guessbox.outputs
+    then raise (Solved g)
+  done;
+  "hack", E_0
+  ) with (Solved g) -> g
 
+
+let step2 guessbox solution_tree =
+  let n, r = Server.guess ~use_cached_copy:true guessbox.id (Program.program_to_s solution_tree) in
+  { guessbox with inputs = n :: guessbox.inputs; outputs = r :: guessbox.outputs }
 
 

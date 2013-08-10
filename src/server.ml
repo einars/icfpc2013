@@ -2,6 +2,7 @@ open Printf
 open Http_client.Convenience
 
 exception Eval_failed of string
+exception Solved of string*string
 
 let key = ref ""
 
@@ -122,3 +123,24 @@ let get_eval ?(use_cached_copy:bool=true) id params =
   if status <> "ok" then raise (Eval_failed message);
 
   List.map Int64.of_string (Helpers.json_get_string_list parsed "outputs")
+
+
+let guess ?(use_cached_copy:bool=true) id program_source =
+  let req_json = Yojson.Safe.to_string ( `Assoc
+    [ ( "id", `String id)
+    ; ("program", `String program_source) ]) in
+  let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/guess?auth=%s" !key) req_json in
+  let status_p = Yojson.Safe.from_string status_json in
+  let status  = Helpers.json_get_string      status_p "status"
+  and values  = Helpers.json_get_string_list status_p "values"
+  and message = Helpers.json_get_string      status_p "message"
+  in
+  if status = "win" then raise (Solved (id, program_source))
+  else if status = "error" then failwith message
+  else if status = "mismatch" then
+    let input = Int64.of_string (List.nth values 0)
+    and expected = Int64.of_string (List.nth values 2)
+    in (input, expected)
+
+  else failwith (Printf.sprintf "Unknown status %s" status)
+
