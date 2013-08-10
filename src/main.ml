@@ -1,11 +1,10 @@
 (* vim: set ts=2 tw=0 foldmethod=marker : *)
 
-open Printf
-open Program
 open Server
 
 let (==) a b = failwith "Use [=] instead of [==]!"
 let (!=) a b = failwith "Use [<>] instead of [!=]!"
+
 
 let run_with (vals:int64 list) (program_source:string) =
   let parsed = Program.parse program_source in
@@ -17,9 +16,22 @@ let _ =
 
   if Tester.run_tests() then begin
 
+    Random.self_init ();
+
     let op = (try Sys.argv.(1) with x -> "default") in
 
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
+
+    if op = "guess" then begin
+      let te = Server.get_training ~use_cached_copy:true ~size:8 () in
+      Helpers.say "challenge = %s" te.challenge;
+      Helpers.say "size      = %d" te.size;
+      Helpers.say "id        = %s" te.id;
+      Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
+
+      let box = Guesser.start te.size te.operators te.id in Guesser.solve box;
+
+    end;
 
     if op = "train" then begin
       let te = Server.get_training ~use_cached_copy:true ~size:5 () in
@@ -30,9 +42,9 @@ let _ =
 
       let inputs = [ 0x0123456789abcdefL; 0xfedcba9876543210L; 0xfedcba9876543210L; ] in
       let outputs = Server.get_eval ~use_cached_copy:true te.id inputs in
-      Helpers.say "Inputs:  %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") inputs));
-      Helpers.say "Outputs: %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") outputs));
-      Helpers.say "Guess results: %s" (ExtString.String.join ", " (List.map (sprintf "0x%016Lx") outputs));
+      Helpers.say "Inputs:  %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") inputs));
+      Helpers.say "Outputs: %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") outputs));
+      Helpers.say "Guess results: %s" (ExtString.String.join ", " (List.map (Printf.sprintf "0x%016Lx") outputs));
 
       let challenge = Program.parse te.challenge in
       List.iter2 (fun guess expected ->

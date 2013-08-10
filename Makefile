@@ -1,4 +1,4 @@
-SOURCES = src/helpers.ml src/server.ml src/program.ml src/tester.ml src/main.ml
+SOURCES = src/helpers.ml src/server.ml src/program.ml src/guesser.ml src/tester.ml src/main.ml
 RESULT = bleach
 
 PACKS = netclient extlib yojson
@@ -6,7 +6,8 @@ PACKS = netclient extlib yojson
 
 .SILENT:
 
-all: native-code
+#all: native-code
+all: debug-native-code
 
 -include OCamlMakefile
 

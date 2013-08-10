@@ -95,8 +95,9 @@ let get_status ?(use_cached_copy=true) () =
 
 let get_training ?(use_cached_copy:bool = true) ?(size:int=5) ?(operators:string list=[]) () =
 
-  let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in
-  (* Helpers.say "%s" req_json; *)
+  let req_json = sprintf "{\"size\":%d,\"operators\":[]}" size in
+  (* let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in *)
+  Helpers.say "%s" req_json;
 
 
   let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/train?auth=%s" !key) req_json in
