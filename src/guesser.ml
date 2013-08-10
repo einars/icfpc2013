@@ -1,22 +1,14 @@
 (* vim: set ts=2 tw=0 foldmethod=marker : *)
 
 open Program
+open Server
 
-type guess_t =
-  { dna: int array
-  ; parsed: program
-  ; mutable score : int
-  }
+(*
+val start : int -> string list -> string -> guessbox_t
+val solve : guessbox_t -> program
+val step2  : guessbox_t -> program -> guessbox_t
 
-type guessbox_t =
-  { available_ops : string list
-  ; program_id : string
-  ; program_size : int
-  ; mutable guesses : guess_t list
-  ; mutable inputs : int64 list
-  ; mutable outputs : int64 list
-  }
-
+*)
 exception Nuff
 exception Solved of program
 
@@ -38,15 +30,14 @@ let default_guess_context =
   ; allow_const = true
   }
 
-let build_program size allowed_ops dna =
-  (* transform dna to program *)
+let build_program size allowed_ops =
 
   let rec get_expr context ptr =
     if ptr > size then raise Nuff;
 
     let n_ops = List.length allowed_ops in
     let adj = if context.inside_fold then 5 else 3 in
-    let r = dna.(ptr) mod (n_ops + adj) - adj in
+    let r = (Random.int (n_ops + adj)) - adj in
     let nptr = ptr + 1 in
 
     let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
@@ -119,17 +110,10 @@ let build_program size allowed_ops dna =
 
 let good_random_guess size allowed_ops =
 
-  let make_dna () = Array.init size (fun _ -> Random.int 255) in
-  let rec stumble iterations =
-    (* if iterations = 1000000
-    then failwith "Cannot make a good guess"
-    else *) let dna = make_dna () in
-    try ignore(build_program size allowed_ops dna); dna with _ -> (stumble (iterations + 1))
+  let rec stumble () =
+    try build_program size allowed_ops with _ -> stumble ()
   in
-  let good_dna = stumble 0 in
-  { dna = good_dna
-  ; parsed = (build_program size allowed_ops good_dna)
-  ; score = 0 }
+  stumble ()
 
 
 
@@ -137,6 +121,7 @@ let suitable_first_inputs () =
   let base =
     [ 0xffffffffffffffffL
     ; 0x0000000000000000L
+    ; 0x8000000000000000L
     ; 0x2000000000000000L
     ; 0x1111111111111111L
     ; 0x0101010101010101L
@@ -151,47 +136,54 @@ let suitable_first_inputs () =
   in
   append_random base 10
 
-let start size ops id =
-  let initial_inputs = if id = "" then [] else suitable_first_inputs () in
-
-  { available_ops = ops
-  ; program_id = id
-  ; program_size = size
-  ; guesses = []
-  (* ; guesses = (initial_guesses size) *)
-  ; inputs = initial_inputs
-  ; outputs = Server.get_eval id initial_inputs
-  }
 
 
-let solve guessbox =
-  Helpers.say "Guesser.solve %s %d, %d tests" guessbox.program_id guessbox.program_size (List.length guessbox.inputs);
-  (*
-  Helpers.say "inputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.inputs));
-  Helpers.say "outputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.outputs));
-  *)
 
-  try (
-  let rot = Helpers.make_rotator () in
-  while true do
-    let g = (build_program guessbox.program_size guessbox.available_ops (good_random_guess guessbox.program_size guessbox.available_ops).dna) in
-    (* Helpers.say "checking %s" (Program.program_to_s g); *)
-    rot ();
-    if List.for_all2 (fun a b -> Program.eval g a = b) guessbox.inputs guessbox.outputs
-    then raise (Solved g)
-  done;
-  "hack", E_0
-  ) with (Solved g) -> Helpers.say "Probably solved: %s" (Program.program_to_s g); g
-
-
-let step2 guessbox solution_tree =
-  Helpers.say ">> -- %s" (Program.program_to_s solution_tree);
-  let n, r = Server.guess ~use_cached_copy:true guessbox.program_id (Program.program_to_s solution_tree) in
-  let had = (Program.eval solution_tree n) in
+let improve_via_server_guess desc guess =
+  Helpers.say "improve %s" (Program.program_to_s guess);
+  (* will throw Server.Solved on success *)
+  let n, r = Server.guess desc.problem_id (Program.program_to_s guess) in
+  let had = (Program.eval guess n) in
   Helpers.say "  -- input:  %016Lx" n;
   Helpers.say "  -- output: %016Lx" r;
   Helpers.say "  -- had:    %016Lx" had;
   if had = r then failwith "Something fishy, please check";
-  { guessbox with inputs = n :: guessbox.inputs; outputs = r :: guessbox.outputs }
+  n, r
+
+
+let rec process_random_stuff desc verify_fn : unit =
+  let rot = Helpers.make_rotator () in
+  let rec loop () =
+    verify_fn ( good_random_guess desc.problem_size desc.operators );
+    rot ();
+    loop ()
+  in
+  loop ()
+
+
+let do_your_thing desc =
+
+  let inputs = ref []
+  and outputs = ref [] in
+
+  let verifier some_guess =
+      if List.for_all2 (fun a b -> Program.eval some_guess a = b) !inputs !outputs then (
+        let new_guess, new_result = improve_via_server_guess desc some_guess in
+        inputs := new_guess :: !inputs;
+        outputs := new_guess :: !outputs;
+      )
+  in
+
+  if desc.problem_id = "" then failwith "I really need a problem ID";
+
+  inputs := suitable_first_inputs ();
+  outputs := Server.get_eval desc.problem_id !inputs;
+  try
+    process_random_stuff desc verifier;
+    failwith "Nothing found, really";
+  with (Server.Solved (problem_id, excellent_source)) -> (
+    Helpers.say "SOLVED  %s\n" problem_id;
+    excellent_source
+  )
 
 

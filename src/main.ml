@@ -23,53 +23,43 @@ let _ =
 
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
-    let rec oompaloompa box =
-      try (
-      let best = Guesser.solve box in
-      let box = Guesser.step2 box best in
-      oompaloompa box
-      ) with Server.Solved _ -> Helpers.say "Solved!";
-    in
-
-    if op = "ouch" then begin
-      (* oompaloompa (Guesser.start 5 ["shl1"; "xor"] "0UTVqJH86wBbJljF2shldH1A") *)
-      (* oompaloompa (Guesser.start 8 ["or"; "plus"; "shl1"; "shr16"] "0WnMyvJVhmCAOiaZREBsMiWs") *)
-      (* oompaloompa (Guesser.start 22 ["if0"; "not"; "or"; "plus"; "shl1"; "shr1"; "shr16"; "xor"] "zHsDD05sZUSBROeuEnKGUAkj") *)
-      (* oompaloompa (Guesser.start 11 ["fold"; "not"; "shr1"; "shr16"; "xor"] "02biTMAo9m60zbZxZfUjkuAM") *)
-      (* oompaloompa (Guesser.start 8 ["or"; "plus"] "0awKUJaqmczw11R2pfIE2X3K") *)
-
-    end;
-
-
     if op = "live" then begin
+      (*
       let p = Server.get_real_problem Sys.argv.(2) in
       Helpers.say "id   = %s" p.real_id;
       Helpers.say "size = %d" p.real_size;
       Helpers.say "ops  = %s" (ExtString.String.join "; " p.real_operators);
+      *)
 
-      for seconds = 3 downto 1 do
+      (*
+      for seconds = 2 downto 1 do
         Printf.printf "Will solve a REAL LIVE problem in %d seconds. Ctrl-C to cancel!\r%!" seconds;
         ignore(Unix.select [] [] [] 1.0);
       done;
       Printf.printf "                                                                  \r%!";
+      *)
 
       (* oompaloompa (Guesser.start (p.real_size + 2) (List.append p.real_operators [ "or"; "xor"; "and"; "shl1"; "shr1"; "shr4"; "shr16" ]) p.real_id) *)
-      oompaloompa (Guesser.start (p.real_size + 2) p.real_operators p.real_id)
+      (* oompaloompa (Guesser.start (p.real_size + 2) p.real_operators p.real_id) *)
 
+      let te = Server.get_real Sys.argv.(2) in
+      Helpers.say "size      = %d" te.problem_size;
+      Helpers.say "id        = %s" te.problem_id;
+      Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
+      ignore( Guesser.do_your_thing te );
     end;
 
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true (int_of_string Sys.argv.(2)) (try Sys.argv.(3) with _ -> "") in
-      Helpers.say "challenge = %s" te.challenge;
-      Helpers.say "size      = %d" te.size;
-      Helpers.say "id        = %s" te.id;
+      let te = Server.get_training (int_of_string Sys.argv.(2)) (try Sys.argv.(3) with _ -> "") in
+      Helpers.say "size      = %d" te.problem_size;
+      Helpers.say "id        = %s" te.problem_id;
       Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
-      oompaloompa (Guesser.start (te.size + 8) te.operators te.id)
+      ignore( Guesser.do_your_thing te );
     end;
 
 
     if op = "status" then begin
-      let st = Server.get_status ~use_cached_copy:false () in
+      let st = Server.get_status () in
       Helpers.say "contest_score  = %d" st.contest_score;
       Helpers.say "training_score = %d" st.training_score;
       Helpers.say "num_request    = %d" st.num_requests;

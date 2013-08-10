@@ -12,22 +12,16 @@ let assert_key_set () =
   Http_client.Convenience.http_trials := 1;
   if !key = "" then failwith "Use Server.set_key to set the competition key"
 
+type problem_description_t =
+  { problem_id : string
+  ; problem_size : int
+  ; operators : string list }
+
 
 type contest_status_t =
   { contest_score : int
   ; training_score : int
   ; num_requests : int }
-
-type training_entry_t =
-  { challenge : string
-  ; id : string
-  ; size : int
-  ; operators : string list }
-
-type real_entry_t =
-  { real_id : string
-  ; real_size: int
-  ; real_operators: string list }
 
 
 let is_usable_cache f =
@@ -54,41 +48,14 @@ let rec with_http_error_handling fn = fun (x) -> (try
   )
 
 
-let cached_http_get ?(use_cached_copy = true) url =
+let http_get url =
+  assert_key_set ();
+  (with_http_error_handling http_get) url
+
+
+let rec http_post url body =
 
   assert_key_set ();
-
-  let md = Digest.to_hex ( Digest.string url ) in
-  let cache_file = sprintf "cache/%s" md in
-
-
-  if use_cached_copy && is_usable_cache cache_file then begin
-    let f = open_in cache_file in
-    let ret = Std.input_all f in
-    close_in f;
-    ret
-  end else begin
-    let ret = (with_http_error_handling http_get) url in
-    let f = open_out cache_file in
-    output_string f ret;
-    close_out f;
-    ret
-  end
-
-
-let rec cached_http_post ?(use_cached_copy = true) url body =
-
-  assert_key_set ();
-
-  let md = Digest.to_hex ( Digest.string (url ^ body) ) in
-  let cache_file = sprintf "cache/%s" md in
-
-  if use_cached_copy && is_usable_cache cache_file then begin
-    let f = open_in cache_file in
-    let ret = Std.input_all f in
-    close_in f;
-    ret
-  end else begin
 
     let run_req = fun url body -> (
       let req = new Http_client.post_raw url body in
@@ -98,29 +65,25 @@ let rec cached_http_post ?(use_cached_copy = true) url body =
       pipe # run ();
       req # get_resp_body () ) in
 
-    let ret = try
-      run_req url body 
-    with Http_client.Http_error (id, msg) ->
-      if msg = "Too many requests" then begin
-        printf "Too many requests, sleeping for 3s%!";
-        for i = 1 to 3 do
-          printf ".%!";
-          ignore( Unix.select [] [] [] 1.0 );
-        done;
-        printf "\n%!";
-        cached_http_post url body
-      end else failwith (sprintf "%d: %s" id msg)
-    in
+    (
+      try
+        run_req url body
+      with Http_client.Http_error (id, msg) ->
+        if msg = "Too many requests" then begin
+          printf "Too many requests, sleeping for 3s%!";
+          for i = 1 to 3 do
+            printf ".%!";
+            ignore( Unix.select [] [] [] 1.0 );
+          done;
+          printf "\n%!";
+          http_post url body
+        end else failwith (sprintf "%d: %s" id msg)
+    )
 
-    let f = open_out cache_file in
-    output_string f ret;
-    close_out f;
-    ret
-  end
 
-let get_status ?(use_cached_copy=true) () =
+let get_status () =
 
-  let status_json = cached_http_get ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/status?auth=%s" !key)  in
+  let status_json = http_get (sprintf "http://icfpc2013.cloudapp.net/status?auth=%s" !key)  in
   let parsed = Yojson.Safe.from_string status_json in
   let cs = Helpers.json_get_int parsed "contestScore"
   and ts = Helpers.json_get_int parsed "trainingScore"
@@ -131,7 +94,7 @@ let get_status ?(use_cached_copy=true) () =
   ; num_requests = nr }
 
 
-let get_training ?(use_cached_copy:bool = true) size operator_mode =
+let get_training size operator_mode =
 
   let req_json =
     if operator_mode = "" || size = 42 then sprintf "{\"size\":%d}" size
@@ -140,15 +103,15 @@ let get_training ?(use_cached_copy:bool = true) size operator_mode =
     else if operator_mode = "tfold" then sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size
     else failwith ("Unknown operator mode " ^ operator_mode) in
 
-  let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/train?auth=%s" !key) req_json in
+  let status_json = http_post (sprintf "http://icfpc2013.cloudapp.net/train?auth=%s" !key) req_json in
   let parsed = Yojson.Safe.from_string status_json in
-  { challenge = Helpers.json_get_string parsed "challenge"
-  ; id = Helpers.json_get_string parsed "id"
-  ; size = Helpers.json_get_int parsed "size"
+  Helpers.say " :: challenge %s" (Helpers.json_get_string parsed "challenge");
+  { problem_id = Helpers.json_get_string parsed "id"
+  ; problem_size = Helpers.json_get_int parsed "size"
   ; operators = Helpers.json_get_string_list parsed "operators" }
 
 
-let get_eval ?(use_cached_copy:bool=true) id params =
+let get_eval id params =
 
   if params = [] || id = "" then []
   else begin
@@ -156,7 +119,7 @@ let get_eval ?(use_cached_copy:bool=true) id params =
       [ ("id", `String id)
       ; ("arguments", Helpers.json_list_of_strings (List.map (fun x -> sprintf "0x%016Lx" x) params))
       ]) in
-    let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/eval?auth=%s" !key) req_json in
+    let status_json = http_post (sprintf "http://icfpc2013.cloudapp.net/eval?auth=%s" !key) req_json in
     let parsed = Yojson.Safe.from_string status_json in
 
     let status = Helpers.json_get_string parsed "status"
@@ -168,11 +131,11 @@ let get_eval ?(use_cached_copy:bool=true) id params =
 
 
 
-let guess ?(use_cached_copy:bool=true) id program_source =
+let guess id program_source =
   let req_json = Yojson.Safe.to_string ( `Assoc
     [ ( "id", `String id)
     ; ("program", `String program_source) ]) in
-  let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/guess?auth=%s" !key) req_json in
+  let status_json = http_post (sprintf "http://icfpc2013.cloudapp.net/guess?auth=%s" !key) req_json in
   let status_p = Yojson.Safe.from_string status_json in
   let status  = Helpers.json_get_string      status_p "status"
   and values  = Helpers.json_get_string_list status_p "values"
@@ -188,14 +151,14 @@ let guess ?(use_cached_copy:bool=true) id program_source =
   else failwith (Printf.sprintf "Unknown status %s" status)
 
 
-let get_real_problem id =
+let get_real id =
   let json_p = Yojson.Safe.from_file "web/problems/current.js" in
 
   let rec find_matching_problem = function
     | elem :: rest -> if Helpers.json_get_string elem "id" = id then
-      { real_id = id
-      ; real_size = Helpers.json_get_int elem "size"
-      ; real_operators = Helpers.json_get_string_list elem "operators" 
+      { problem_id = id
+      ; problem_size = Helpers.json_get_int elem "size"
+      ; operators = Helpers.json_get_string_list elem "operators"
       } else find_matching_problem rest
     | [] -> failwith "No such problem"
   in

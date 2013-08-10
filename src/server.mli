@@ -6,27 +6,21 @@ type contest_status_t =
   ; training_score : int
   ; num_requests : int }
 
-type training_entry_t =
-  { challenge : string
-  ; id : string
-  ; size : int
+type problem_description_t =
+  { problem_id : string
+  ; problem_size : int
   ; operators : string list }
 
-type real_entry_t =
-  { real_id : string
-  ; real_size: int
-  ; real_operators: string list }
 
+val get_status : unit -> contest_status_t
 
-val get_real_problem : string -> real_entry_t
+val get_training : int -> string -> problem_description_t
+val get_real : string -> problem_description_t
 
-val get_status : ?use_cached_copy:bool -> unit -> contest_status_t
-
-val get_training : ?use_cached_copy:bool -> int -> string -> training_entry_t
 
 exception Eval_failed of string
 exception Solved of string*string
 
-val get_eval : ?use_cached_copy:bool -> string -> int64 list -> int64 list
-val guess : ?use_cached_copy:bool -> string -> string -> int64 * int64
+val get_eval : string -> int64 list -> int64 list
+val guess : string -> string -> int64 * int64
 
