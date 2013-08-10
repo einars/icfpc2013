@@ -6,12 +6,13 @@ if ( ! file_exists('problems')) {
 
 $key = "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
-if ( ! file_exists('problems/current.js') || isset ($_POST['update'])) {
+if ( ! file_exists('problems/current.js') || isset ($_REQUEST['update'])) {
 
     $url = 'http://icfpc2013.cloudapp.net/myproblems?auth=' . $key;
     $js = fetch_external($url);
-    if ( ! $js) {
-        die("Cannot fetch from $url");
+    if ( ! $js or strlen($js) < 20) {
+        header('Location: ?update=yes');
+        exit;
     }
 
     if (file_exists('problems/current.js')) {
@@ -51,11 +52,18 @@ if ($requested_json == 'tfold.json') {
 
 html_prologue();
 echo '<div class="status">';
-printf('<div class="percentage">%.1f%%</div>', 
-    sizeof($probs->solved) * 100 / $probs->n_total);
+
+$max_coolness = 0;
+$our_coolness = 0;
+foreach($probs->all as $prob) $max_coolness += $prob['size'];
+foreach($probs->solved as $prob) $our_coolness += $prob['size'];
+
+printf('<div class="percentage"><b>%.1f</b><span>﹪</span>, coolness: <b>%.1f</b><span>﹪</span></div>', 
+    sizeof($probs->solved) * 100 / $probs->n_total,
+    $our_coolness * 100 / $max_coolness
+);
 printf('<form method="post" action="?"><input type="hidden" name="update" value="yes"><button type="submit">Refresh from ICFP server (%s, %d min ago)</button></form>',
     date('H:i', filectime('problems/current.js')), (time() - filectime('problems/current.js')) / 60 );
-
 
 printf('Solved: %d of %d, failed: %d'
     , sizeof($probs->solved)
@@ -78,10 +86,10 @@ printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold:
     , sizeof($probs->bonus)
 );
 echo '</div>';
-echo '<h2 id="simple">Simple problems</h2>';
-print_problems($probs->simple, 'p-simple');
 echo '<h2 id="fold">fold problems</h2>';
 print_problems($probs->fold, 'p-fold');
+echo '<h2 id="simple">Simple problems</h2>';
+print_problems($probs->simple, 'p-simple');
 echo '<h2 id="tfold">Tfold problems</h2>';
 print_problems($probs->tfold, 'p-tfold');
 echo '<h2 id="bonus">Bonus problems</h2>';
@@ -98,9 +106,16 @@ function print_problems($ps, $class)
         $last_size = 0;
         foreach($ps as $p) {
             if ($last_size == 0) $last_size = $p['size'];
+            $class = '';
             if ($p['size'] != $last_size) {
-                echo '<tr class="sep">';
+                $class .= 'sep ';
                 $last_size = $p['size'];
+            }
+            if (isset($p['timeLeft'])) {
+                $class .= 'in-progress ';
+            }
+            if ($class) {
+                echo '<tr class="' . trim($class) . '">';
             } else {
                 echo '<tr>';
             }
@@ -130,6 +145,7 @@ function fetch_external($url)
 function exploderate($js)
 {
     $problems = (object)array(
+        'all' => array(),
         'solved' => array(),
         'failed' => array(),
         'simple' => array(),
@@ -140,14 +156,17 @@ function exploderate($js)
         'n_total' => sizeof($js),
     );
     foreach($js as $p) {
+        $problems->all[] = $p;
+        if ($p['timeLeft'] and ! $p['solved']) {
+            $problems->in_progress[] = $p;
+            unset($p['solved']);
+        }
         if (isset($p['solved'])) {
             if ($p['solved'] == 1) {
                 $problems->solved[] = $p;
             } else {
                 if ( ! $p['timeLeft']) {
                     $problems->failed[] = $p;
-                } else {
-                    $problems->in_progress[] = $p;
                 }
             }
         } else {
@@ -173,7 +192,7 @@ function exploderate($js)
 
 function problem_sort($a, $b) {
     if ($a['size'] == $b['size']) {
-        return strcmp($a['id'], $b['id']);
+        return strcasecmp($a['id'], $b['id']);
     } else {
         return $a['size'] - $b['size'];
     }
@@ -182,7 +201,9 @@ function problem_sort($a, $b) {
 function html_prologue()
 {
     echo <<<CSS
-<html><head><title>ICFP2013</title>
+<html><head>
+    <meta charset="utf8">
+<title>ICFP2013</title>
 <style>
 * {
 font-family: arial, sans-serif;
@@ -207,7 +228,6 @@ div.status {
     position: absolute;
     left: 500px;
     font-size: 24px;
-    font-weight: bold;
     background: #933;
     color: white;
     border-radius: 10px;
@@ -276,8 +296,12 @@ h2#bonus {
 td.tt {
     font-family: source code pro, monaco, courier new, monospace;
 }
+tr.in-progress td {
+    background: #ff9;
+}
 
-</style></head><body>
+</style>
+    </head><body>
 CSS;
 }
 function html_epilogue()
