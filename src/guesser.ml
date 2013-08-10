@@ -140,9 +140,9 @@ let suitable_first_inputs () =
 
 
 let improve_via_server_guess desc guess =
-  Helpers.say "improve %s" (Program.program_to_s guess);
+  Helpers.say "improve %s" (Program.to_s guess);
   (* will throw Server.Solved on success *)
-  let n, r = Server.guess desc.problem_id (Program.program_to_s guess) in
+  let n, r = Server.guess desc.problem_id (Program.to_s guess) in
   let had = (Program.eval guess n) in
   Helpers.say "  -- input:  %016Lx" n;
   Helpers.say "  -- output: %016Lx" r;
@@ -151,8 +151,133 @@ let improve_via_server_guess desc guess =
   n, r
 
 
+let rot = Helpers.make_rotator ()
+
+let rec smart_iterate_problemspace desc verify_fn : unit =
+
+  let n_ops = Array.length desc.operators in
+
+  let rec with_matching_exprs ptr context builder_f =
+
+    let nptr = ptr + 1 in
+    let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
+    let context_skip_zero = { n_context with allow_zero = false } in
+
+    let do_expr r =
+      if ptr > desc.problem_size then raise Nuff;
+
+      (* let op = desc.operators.(r) in *)
+
+      if r = -5 then if context.inside_fold then (builder_f (Identifier "y1") nptr);
+      if r = -4 then if context.inside_fold then (builder_f (Identifier "y2") nptr);
+      if r = -3 then if context.allow_const && context.allow_zero then (builder_f E_0 nptr);
+      if r = -2 then if context.allow_const then (builder_f E_1 nptr);
+      if r = -1 then ( builder_f (Identifier "x") nptr );
+
+      if r >= 0 && r < Array.length desc.operators then begin
+        let op = desc.operators.(r) in
+        if op = "not" && (not context.allow_not) then raise Nuff;
+        if op = "fold" && (not context.allow_fold) then raise Nuff;
+        if op = "fold" && (context.inside_fold) then raise Nuff;
+        if op = "tfold" && (not context.allow_fold) then raise Nuff;
+        if op = "tfold" && (context.inside_fold) then raise Nuff;
+        if op = "bonus" then raise Nuff;
+
+      (* op3 *)
+      if op = "if0" then (
+        with_matching_exprs nptr {n_context with allow_const = false }
+          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+              (fun e2 nptr -> with_matching_exprs nptr n_context
+                  (fun e3 nptr -> builder_f (If0 (e1, e2, e3)) nptr)))
+      ) else
+      (* op1 *)
+      if op = "not" then (
+        with_matching_exprs nptr {n_context with allow_not = false}
+          (fun e1 nptr -> builder_f (Not e1) nptr)
+      ) else
+      if op = "shl1" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> builder_f (Shl1 e1) nptr)
+      ) else
+      if op = "shr1" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> builder_f (Shr1 e1) nptr)
+      ) else
+      if op = "shr4" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> builder_f (Shr4 e1) nptr)
+      ) else
+      if op = "shr16" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> builder_f (Shr16 e1) nptr)
+      ) else
+      (* op2 *)
+      if op = "and" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
+      ) else
+      if op = "or" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
+      ) else
+      if op = "xor" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
+      ) else
+      if op = "plus" then (
+        with_matching_exprs nptr context_skip_zero
+          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
+      ) else
+      (* op2 *)
+      if op = "tfold" then (
+        with_matching_exprs nptr { n_context with allow_fold = false }
+          (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
+              (fun e2 nptr -> builder_f (Fold (e1, E_0, "y1", "y2", e2)) nptr))
+      ) else
+      if op = "fold" then (
+        with_matching_exprs nptr { n_context with allow_fold = false }
+          (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false }
+              (fun e2 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
+                  (fun e3 nptr -> builder_f (Fold (e1, e2, "y1", "y2", e3)) nptr)))
+      )
+      end
+
+      in
+
+
+      (*
+      let shuffled d =
+          let nd = List.map (fun c -> (Random.bits (), c)) d in
+          let sond = List.sort compare nd in
+          List.map snd sond
+      in
+
+      List.iter (fun x -> try do_expr x with Nuff -> ()) (shuffled [-4; -3; -2; -1; 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17])
+      *)
+      (*
+      for i = -4 to 15 do
+        try do_expr i with Nuff -> ()
+      done
+      *)
+      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
+      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
+      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
+      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
+      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
+      ()
+
+  in
+
+  while true do
+    with_matching_exprs 0 default_guess_context (fun e nptr -> rot() ; if nptr > 1 then verify_fn ("x", e))
+  done
+
 let rec process_random_stuff desc verify_fn : unit =
-  let rot = Helpers.make_rotator () in
+  Helpers.say "Using process_random_stuff solver";
   let rec loop () =
     verify_fn ( good_random_guess desc );
     rot ();
@@ -167,11 +292,12 @@ let do_your_thing desc =
   and outputs = ref [] in
 
   let verifier some_guess =
-      if List.for_all2 (fun a b -> Program.eval some_guess a = b) !inputs !outputs then (
-        let new_guess, new_result = improve_via_server_guess desc some_guess in
-        inputs := new_guess :: !inputs;
-        outputs := new_guess :: !outputs;
-      )
+    (* Helpers.say "???? %s" (Program.to_s some_guess); *)
+    if List.for_all2 (fun a b -> Program.eval some_guess a = b) !inputs !outputs then (
+      let new_guess, new_result = improve_via_server_guess desc some_guess in
+      inputs := new_guess :: !inputs;
+      outputs := new_guess :: !outputs;
+    )
   in
 
   if desc.problem_id = "" then failwith "I really need a problem ID";
@@ -179,11 +305,11 @@ let do_your_thing desc =
   inputs := suitable_first_inputs ();
   outputs := Server.get_eval desc.problem_id !inputs;
   try
-    process_random_stuff desc verifier;
-    failwith "Nothing found, really";
+    (* process_random_stuff desc verifier; *)
+    smart_iterate_problemspace desc verifier;
   with (Server.Solved (problem_id, excellent_source)) -> (
     Helpers.say "SOLVED  %s\n" problem_id;
-    excellent_source
+    ()
   )
 
 
