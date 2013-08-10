@@ -20,43 +20,53 @@ type guessbox_t =
 exception Nuff
 exception Solved of program
 
-let build_program size dna =
+let build_program size allowed_ops dna =
   (* transform dna to program *)
 
   let rec get_expr ptr =
     if ptr >= size then raise Nuff;
-    let r = dna.(ptr) in
+
+    let n_ops = List.length allowed_ops in
+    let r = dna.(ptr) mod (n_ops + 3) - 3 in
     let nptr = ptr + 1 in
 
-    if r = 0 then E_0, (ptr+1)
-    else if r = 1 then E_1, (ptr+1)
-    else if r = 2 then Identifier "x", (ptr+1)
-    else if r = 3 then
+    (* Helpers.say "%d" r; *)
+
+    if r = -3 then E_0, (ptr+1)
+    else if r = -2 then E_1, (ptr+1)
+    else if r = -1 then Identifier "x", (ptr+2)
+    else
+
+    let op = List.nth allowed_ops r in
+
+    if op = "if0" then
       let e1, nptr = get_expr nptr in
       let e2, nptr = get_expr nptr in
       let e3, nptr = get_expr nptr in
       If0 (e1, e2, e3), nptr
-    else if r = 4 then let e1, nptr = get_expr nptr in (Not e1), nptr
-    else if r = 5 then let e1, nptr = get_expr nptr in (Shl1 e1), nptr
-    else if r = 6 then let e1, nptr = get_expr nptr in (Shr1 e1), nptr
-    else if r = 7 then let e1, nptr = get_expr nptr in (Shr4 e1), nptr
-    else if r = 8 then let e1, nptr = get_expr nptr in (Shr16 e1), nptr
-    else if r = 9 then
+    else 
+      if op = "not" then let e1, nptr = get_expr nptr in (Not e1), nptr
+    else if op = "shl1" then let e1, nptr = get_expr nptr in (Shl1 e1), nptr
+    else if op = "shr1" then let e1, nptr = get_expr nptr in (Shr1 e1), nptr
+    else if op = "shr4" then let e1, nptr = get_expr nptr in (Shr4 e1), nptr
+    else if op = "shr16" then let e1, nptr = get_expr nptr in (Shr16 e1), nptr
+    else if op = "and" then
       let e1, nptr = get_expr nptr in
       let e2, nptr = get_expr nptr in
       And (e1, e2), nptr
-    else if r = 10 then
+    else if op = "or" then
       let e1, nptr = get_expr nptr in
       let e2, nptr = get_expr nptr in
       Or (e1, e2), nptr
-    else if r = 11 then
+    else if op = "xor" then
       let e1, nptr = get_expr nptr in
       let e2, nptr = get_expr nptr in
       Xor (e1, e2), nptr
-    else if r = 12 then
+    else if op = "plus" then
       let e1, nptr = get_expr nptr in
       let e2, nptr = get_expr nptr in
-      Plus (e1, e2), nptr else raise Nuff
+      Plus (e1, e2), nptr
+    else raise Nuff
 
   in
   let expr, expr_size = get_expr 0 in
@@ -67,27 +77,21 @@ let build_program size dna =
   "x", expr
 
 
-let good_random_guess size =
+let good_random_guess size allowed_ops =
 
-  let make_dna () = Array.init size (fun _ -> Random.int 12) in
+  let make_dna () = Array.init size (fun _ -> Random.int 255) in
   let rec stumble iterations =
-    if iterations = 1000000
+    (* if iterations = 1000000
     then failwith "Cannot make a good guess"
-    else let dna = make_dna () in
-    try ignore(build_program size dna); dna with _ -> (stumble (iterations + 1))
+    else *) let dna = make_dna () in
+    try ignore(build_program size allowed_ops dna); dna with _ -> (stumble (iterations + 1))
   in
   let good_dna = stumble 0 in
   { dna = good_dna
-  ; parsed = (build_program size good_dna)
+  ; parsed = (build_program size allowed_ops good_dna)
   ; score = 0 }
 
 
-let initial_guesses size =
-  let guesses = ref [] in
-  for i = 1 to size do
-    guesses := (good_random_guess size) :: !guesses;
-  done;
-  !guesses
 
 
 let start size ops id =
@@ -96,7 +100,8 @@ let start size ops id =
   { available_ops = ops
   ; id = id
   ; size = size
-  ; guesses = (initial_guesses size)
+  ; guesses = []
+  (* ; guesses = (initial_guesses size) *)
   ; inputs = first_inputs
   ; outputs = Server.get_eval id first_inputs
   }
@@ -111,7 +116,7 @@ let solve guessbox =
 
   try (
   while true do
-    let g = (build_program guessbox.size (good_random_guess guessbox.size).dna) in
+    let g = (build_program guessbox.size guessbox.available_ops (good_random_guess guessbox.size guessbox.available_ops).dna) in
     (* Helpers.say "checking %s" (Program.program_to_s g); *)
     if List.for_all2 (fun a b -> Program.eval g a = b) guessbox.inputs guessbox.outputs
     then raise (Solved g)
