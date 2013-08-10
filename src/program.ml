@@ -219,6 +219,9 @@ let rec eval_expr e bindings = match e with
 let eval p param =
   let id, exp = p in
   let bindings = Bindings.add id param Bindings.empty in
-  eval_expr exp bindings
+    (
+      try eval_expr exp bindings
+      with Not_found -> Helpers.say "BORKTREE: %s" (program_to_s p); raise Not_found
+    )
 
 let eval_s p param = eval (parse p) param

@@ -93,10 +93,14 @@ let get_status ?(use_cached_copy=true) () =
   ; num_requests = nr }
 
 
+  (*
+let handle_http_error f ->
+  try f() with (Http_client.Http_protocol p) -> 
+    *)
 
 let get_training ?(use_cached_copy:bool = true) ?(size:int=5) ?(operators:string list=[]) () =
 
-  let req_json = sprintf "{\"size\":%d,\"operators\":[]}" size in
+  let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in
   (* let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in *)
   Helpers.say "%s" req_json;
 

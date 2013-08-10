@@ -18,3 +18,5 @@ type guessbox_t =
 val start : int -> string list -> string -> guessbox_t
 val solve : guessbox_t -> program
 val step2  : guessbox_t -> program -> guessbox_t
+
+val suitable_first_inputs : unit -> int64 list
