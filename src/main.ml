@@ -40,7 +40,7 @@ let _ =
 
 
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true 18 in
+      let te = Server.get_training ~use_cached_copy:true 10 in
       Helpers.say "challenge = %s" te.challenge;
       Helpers.say "size      = %d" te.size;
       Helpers.say "id        = %s" te.id;

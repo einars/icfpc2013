@@ -33,11 +33,27 @@ $js = file_get_contents('problems/current.js');
 $js = json_decode($js, true);
 
 $probs = exploderate($js);
+
+$requested_json = isset($_REQUEST['json']) ? $_REQUEST['json'] : null;
+
+if ($requested_json == 'simple.json' or $requested_json == 'op.json') {
+    dump_json($probs->op);
+    exit;
+}
+if ($requested_json == 'fold.json') {
+    dump_json($probs->fold);
+    exit;
+}
+if ($requested_json == 'tfold.json') {
+    dump_json($probs->tfold);
+    exit;
+}
+
 html_prologue();
 echo '<div class="status">';
 printf('<form method="post" action="?"><input type="hidden" name="update" value="yes"><button type="submit">Refresh from ICFP server (age: %d min)</button></form>',
     (time() - filectime('problems/current.js')) / 60 );
-printf('Solved: %d of %d, failed: %d<br>Unsolved <a class="anchor" href="#op">simple: %d</a>, <a class="anchor" href="#fold">fold: %d</a>, <a class="anchor" href="#tfold">tfold: %d</a>'
+printf('Solved: %d of %d, failed: %d<br>Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold: %d</a>, <a href="tfold.json">tfold: %d</a>'
     , sizeof($probs->solved)
     , $probs->n_total
     , sizeof($probs->failed)
@@ -134,8 +150,12 @@ function html_prologue()
 font-family: arial, sans-serif;
 margin: 0; padding: 0;
 }
+a {
+    color: #335;
+    margin: 0 4px;
+}
 a.anchor {
-    color: #333;
+    color: #335;
     text-decoration: none;
     border-bottom: 1px dotted #888;
 }
@@ -192,6 +212,13 @@ CSS;
 function html_epilogue()
 {
     echo '</body></html>';
+}
+
+function dump_json($probs)
+{
+    Header('Content-type: text/json');
+    echo json_encode($probs);
+    exit;
 }
 ?>
 

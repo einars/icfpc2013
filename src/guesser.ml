@@ -20,10 +20,19 @@ type guessbox_t =
 exception Nuff
 exception Solved of program
 
-type guess_context =
-  { skip_zero : bool
+type guess_context_t =
+  { allow_zero : bool
   ; use_fold : bool
-  ; inside_fold : bool }
+  ; inside_fold : bool
+  ; allow_not : bool
+  }
+
+let default_guess_context =
+  { allow_zero = true
+  ; use_fold = true
+  ; inside_fold = false
+  ; allow_not = true
+  }
 
 let build_program size allowed_ops dna =
   (* transform dna to program *)
@@ -36,17 +45,22 @@ let build_program size allowed_ops dna =
     let r = dna.(ptr) mod (n_ops + adj) - adj in
     let nptr = ptr + 1 in
 
-    let context_skip_zero = { context with skip_zero = true } in
+    let context = { context with allow_not = true } in (* reset allow_not status *)
+    let context_skip_zero = { context with allow_zero = false } in
 
     (* Helpers.say "%d" r; *)
 
     if r = -4 then if context.inside_fold then Identifier "y", nptr else raise Nuff
-    else if r = -3 then if context.skip_zero then raise Nuff else E_0, nptr
+    else if r = -3 then if not context.allow_zero then raise Nuff else E_0, nptr
     else if r = -2 then E_1, nptr
     else if r = -1 then Identifier "x", nptr
     else
 
     let op = List.nth allowed_ops r in
+
+    if op = "not" && (not context.allow_not) then raise Nuff;
+    if op = "fold" && (context.inside_fold) then raise Nuff;
+    if op = "tfold" && (context.inside_fold) then raise Nuff;
 
     if op = "if0" then
       let e1, nptr = get_expr context_skip_zero nptr in
@@ -54,15 +68,13 @@ let build_program size allowed_ops dna =
       let e3, nptr = get_expr context nptr in
       If0 (e1, e2, e3), nptr
     else
-      if op = "not" then let e1, nptr = get_expr context nptr in (Not e1), nptr
-    else if op = "fold" then if context.inside_fold then raise Nuff
-      else
+      if op = "not" then let e1, nptr = get_expr { context with allow_not = false } nptr in (Not e1), nptr
+    else if op = "fold" then
         let e1, nptr = get_expr context nptr in
         let e2, nptr = get_expr context nptr in
         let e3, nptr = get_expr { context with inside_fold = true } nptr in
         Fold (e1, e2, "x", "y", e3), nptr
-    else if op = "tfold" then if context.inside_fold then raise Nuff
-      else
+    else if op = "tfold" then
         let e1, nptr = get_expr context nptr in
         let e3, nptr = get_expr { context with inside_fold = true } nptr in
         Fold (e1, E_0, "x", "y", e3), nptr
@@ -89,7 +101,7 @@ let build_program size allowed_ops dna =
     else raise Nuff
 
   in
-  let expr, expr_size = get_expr { skip_zero = true; use_fold = true; inside_fold = false } 0 in
+  let expr, expr_size = get_expr default_guess_context 0 in
   if expr_size == 1 then (
     (* Helpers.say "uncool (%d, want %d) %s" expr_size size (Program.expr_to_s expr); *)
     raise Nuff;

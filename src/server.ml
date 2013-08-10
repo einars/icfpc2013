@@ -31,6 +31,23 @@ let is_usable_cache f =
   else
     false
 
+let rec with_http_error_handling fn = fun (x) -> (try
+  printf "trying!%!";
+  fn x
+  with (Http_client.Http_error (id, msg)) ->
+    printf "dead!%!";
+    if msg = "Too many requests" then begin
+      printf "Too many requests, sleeping for 20s%!";
+      for i = 0 to 20 do
+        printf ".%!";
+        ignore( Unix.select [] [] [] 1.0 );
+      done;
+      printf "\n%!";
+      (with_http_error_handling fn) x;
+    end else failwith (sprintf "%d: %s" id msg)
+  )
+
+
 let cached_http_get ?(use_cached_copy = true) url =
 
   assert_key_set ();
@@ -45,7 +62,7 @@ let cached_http_get ?(use_cached_copy = true) url =
     close_in f;
     ret
   end else begin
-    let ret = http_get url in
+    let ret = (with_http_error_handling http_get) url in
     let f = open_out cache_file in
     output_string f ret;
     close_out f;
@@ -53,7 +70,9 @@ let cached_http_get ?(use_cached_copy = true) url =
   end
 
 
-let cached_http_post ?(use_cached_copy = true) url body =
+let rec cached_http_post ?(use_cached_copy = true) url body =
+
+  printf "train: %s %s" url body;
 
   assert_key_set ();
 
@@ -66,19 +85,34 @@ let cached_http_post ?(use_cached_copy = true) url body =
     close_in f;
     ret
   end else begin
-    let req = new Http_client.post_raw url body in
-    let pipe = new Http_client.pipeline in
-    req # set_accept_encoding ();
-    pipe # add req;
-    pipe # run ();
-    let ret = req # get_resp_body () in
+
+    let run_req = fun url body -> (
+      let req = new Http_client.post_raw url body in
+      let pipe = new Http_client.pipeline in
+      req # set_accept_encoding ();
+      pipe # add req;
+      pipe # run ();
+      req # get_resp_body () ) in
+
+    let ret = try
+      run_req url body 
+    with Http_client.Http_error (id, msg) ->
+      if msg = "Too many requests" then begin
+        printf "Too many requests, sleeping for 20s%!";
+        for i = 0 to 20 do
+          printf ".%!";
+          ignore( Unix.select [] [] [] 1.0 );
+        done;
+        printf "\n%!";
+        cached_http_post url body
+      end else failwith (sprintf "%d: %s" id msg)
+    in
 
     let f = open_out cache_file in
     output_string f ret;
     close_out f;
     ret
   end
-
 
 let get_status ?(use_cached_copy=true) () =
 
@@ -95,7 +129,9 @@ let get_status ?(use_cached_copy=true) () =
 
 let get_training ?(use_cached_copy:bool = true) size =
 
-  let req_json = sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size in
+  (* let req_json = sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size in *)
+  let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in
+  (* let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in *)
   (* let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in *)
   Helpers.say "%s" req_json;
 
