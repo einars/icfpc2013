@@ -25,6 +25,8 @@ type guess_context_t =
   ; use_fold : bool
   ; inside_fold : bool
   ; allow_not : bool
+  ; allow_fold : bool
+  ; allow_const : bool
   }
 
 let default_guess_context =
@@ -32,6 +34,8 @@ let default_guess_context =
   ; use_fold = true
   ; inside_fold = false
   ; allow_not = true
+  ; allow_fold = true
+  ; allow_const = true
   }
 
 let build_program size allowed_ops dna =
@@ -41,43 +45,46 @@ let build_program size allowed_ops dna =
     if ptr > size then raise Nuff;
 
     let n_ops = List.length allowed_ops in
-    let adj = if context.inside_fold then 4 else 3 in
+    let adj = if context.inside_fold then 5 else 3 in
     let r = dna.(ptr) mod (n_ops + adj) - adj in
     let nptr = ptr + 1 in
 
-    let context = { context with allow_not = true } in (* reset allow_not status *)
-    let context_skip_zero = { context with allow_zero = false } in
+    let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
+    let context_skip_zero = { n_context with allow_zero = false } in
 
     (* Helpers.say "%d" r; *)
 
-    if r = -4 then if context.inside_fold then Identifier "y", nptr else raise Nuff
-    else if r = -3 then if not context.allow_zero then raise Nuff else E_0, nptr
-    else if r = -2 then E_1, nptr
+    if r = -5 then if context.inside_fold then Identifier "y1", nptr else raise Nuff
+    else if r = -4 then if context.inside_fold then Identifier "y2", nptr else raise Nuff
+    else if r = -3 then if context.allow_const && context.allow_zero then E_0, nptr else raise Nuff
+    else if r = -2 then if context.allow_const then E_1, nptr else raise Nuff
     else if r = -1 then Identifier "x", nptr
     else
 
     let op = List.nth allowed_ops r in
 
     if op = "not" && (not context.allow_not) then raise Nuff;
+    if op = "fold" && (not context.allow_fold) then raise Nuff;
     if op = "fold" && (context.inside_fold) then raise Nuff;
+    if op = "tfold" && (not context.allow_fold) then raise Nuff;
     if op = "tfold" && (context.inside_fold) then raise Nuff;
 
     if op = "if0" then
-      let e1, nptr = get_expr context_skip_zero nptr in
+      let e1, nptr = get_expr {n_context with allow_const = false } nptr in
       let e2, nptr = get_expr context_skip_zero nptr in
-      let e3, nptr = get_expr context nptr in
+      let e3, nptr = get_expr n_context nptr in
       If0 (e1, e2, e3), nptr
     else
-      if op = "not" then let e1, nptr = get_expr { context with allow_not = false } nptr in (Not e1), nptr
+      if op = "not" then let e1, nptr = get_expr { n_context with allow_not = false } nptr in (Not e1), nptr
     else if op = "fold" then
-        let e1, nptr = get_expr context nptr in
-        let e2, nptr = get_expr context nptr in
-        let e3, nptr = get_expr { context with inside_fold = true } nptr in
-        Fold (e1, e2, "x", "y", e3), nptr
+        let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
+        let e2, nptr = get_expr { n_context with allow_fold = false } nptr in
+        let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+        Fold (e1, e2, "y1", "y2", e3), nptr
     else if op = "tfold" then
-        let e1, nptr = get_expr context nptr in
-        let e3, nptr = get_expr { context with inside_fold = true } nptr in
-        Fold (e1, E_0, "x", "y", e3), nptr
+        let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
+        let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+        Fold (e1, E_0, "y1", "y2", e3), nptr
     else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr in (Shl1 e1), nptr
     else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr in (Shr1 e1), nptr
     else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr in (Shr4 e1), nptr
@@ -98,7 +105,8 @@ let build_program size allowed_ops dna =
       let e1, nptr = get_expr context_skip_zero nptr in
       let e2, nptr = get_expr context_skip_zero nptr in
       Plus (e1, e2), nptr
-    else raise Nuff
+    else if op = "bonus" then raise Nuff
+    else ( Helpers.say "What is %s?" op; raise Nuff )
 
   in
   let expr, expr_size = get_expr default_guess_context 0 in
@@ -129,6 +137,7 @@ let suitable_first_inputs () =
   let base =
     [ 0xffffffffffffffffL
     ; 0x0000000000000000L
+    ; 0x2000000000000000L
     ; 0x1111111111111111L
     ; 0x0101010101010101L
     ; 0x0123456789abcdefL
@@ -140,7 +149,7 @@ let suitable_first_inputs () =
     | 0 -> accum
     | n -> append_random ((Random.int64 0x7ffffffffffffffeL) :: accum) (n - 1)
   in
-  append_random base 50
+  append_random base 10
 
 let start size ops id =
   let initial_inputs = if id = "" then [] else suitable_first_inputs () in
@@ -163,9 +172,11 @@ let solve guessbox =
   *)
 
   try (
+  let rot = Helpers.make_rotator () in
   while true do
     let g = (build_program guessbox.program_size guessbox.available_ops (good_random_guess guessbox.program_size guessbox.available_ops).dna) in
     (* Helpers.say "checking %s" (Program.program_to_s g); *)
+    rot ();
     if List.for_all2 (fun a b -> Program.eval g a = b) guessbox.inputs guessbox.outputs
     then raise (Solved g)
   done;
@@ -174,8 +185,13 @@ let solve guessbox =
 
 
 let step2 guessbox solution_tree =
-  Helpers.say "step2 %s" (Program.program_to_s solution_tree);
+  Helpers.say ">> -- %s" (Program.program_to_s solution_tree);
   let n, r = Server.guess ~use_cached_copy:true guessbox.program_id (Program.program_to_s solution_tree) in
+  let had = (Program.eval solution_tree n) in
+  Helpers.say "  -- input:  %016Lx" n;
+  Helpers.say "  -- output: %016Lx" r;
+  Helpers.say "  -- had:    %016Lx" had;
+  if had = r then failwith "Something fishy, please check";
   { guessbox with inputs = n :: guessbox.inputs; outputs = r :: guessbox.outputs }
 
 

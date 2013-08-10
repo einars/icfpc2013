@@ -38,28 +38,29 @@ $requested_json = isset($_REQUEST['json']) ? $_REQUEST['json'] : null;
 
 if ($requested_json == 'simple.json' or $requested_json == 'op.json') {
     dump_json($probs->op);
-    exit;
 }
 if ($requested_json == 'fold.json') {
     dump_json($probs->fold);
-    exit;
 }
 if ($requested_json == 'tfold.json') {
     dump_json($probs->tfold);
-    exit;
+}
+if ($requested_json == 'tfold.json') {
+    dump_json($probs->bonus);
 }
 
 html_prologue();
 echo '<div class="status">';
 printf('<form method="post" action="?"><input type="hidden" name="update" value="yes"><button type="submit">Refresh from ICFP server (age: %d min)</button></form>',
     (time() - filectime('problems/current.js')) / 60 );
-printf('Solved: %d of %d, failed: %d<br>Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold: %d</a>, <a href="tfold.json">tfold: %d</a>'
+printf('Solved: %d of %d, failed: %d<br>Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold: %d</a>, <a href="tfold.json">tfold: %d</a> <a href="bonus.json">bonus: %d</a>'
     , sizeof($probs->solved)
     , $probs->n_total
     , sizeof($probs->failed)
     , sizeof($probs->op)
     , sizeof($probs->fold)
     , sizeof($probs->tfold)
+    , sizeof($probs->bonus)
 );
 echo '</div>';
 echo '<h2 id="op">Simple problems</h2>';
@@ -68,6 +69,8 @@ echo '<h2 id="fold">fold problems</h2>';
 print_problems($probs->fold, 'p-fold');
 echo '<h2 id="tfold">Tfold problems</h2>';
 print_problems($probs->tfold, 'p-tfold');
+echo '<h2 id="bonus">Bonus problems</h2>';
+print_problems($probs->bonus, 'p-bonus');
 
 html_epilogue();
 
@@ -110,6 +113,7 @@ function exploderate($js)
         'op' => array(),
         'fold' => array(),
         'tfold' => array(),
+        'bonus' => array(),
         'n_total' => sizeof($js),
     );
     foreach($js as $p) {
@@ -124,6 +128,8 @@ function exploderate($js)
                 $problems->tfold[] = $p;
             } else if (in_array('fold', $p['operators'])) {
                 $problems->fold[] = $p;
+            } else if (in_array('bonus', $p['operators'])) {
+                $problems->bonus[] = $p;
             } else {
                 $problems->op[] = $p;
             }
@@ -133,6 +139,7 @@ function exploderate($js)
     usort($problems->op, 'problem_sort');
     usort($problems->fold, 'problem_sort');
     usort($problems->tfold, 'problem_sort');
+    usort($problems->bonus, 'problem_sort');
 
     return $problems;
 }
@@ -205,7 +212,14 @@ h2#op {
     color: white;
 }
 
-table.
+table.p-bonus td {
+    border-bottom: 1px solid #cc9;
+}
+h2#bonus {
+    background-color: #cc9;
+    color: white;
+}
+
 </style></head><body>
 CSS;
 }

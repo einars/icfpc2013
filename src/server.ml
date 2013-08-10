@@ -13,16 +13,22 @@ let assert_key_set () =
   if !key = "" then failwith "Use Server.set_key to set the competition key"
 
 
-type contest_status =
+type contest_status_t =
   { contest_score : int
   ; training_score : int
   ; num_requests : int }
 
-type training_entry =
+type training_entry_t =
   { challenge : string
   ; id : string
   ; size : int
   ; operators : string list }
+
+type real_entry_t =
+  { real_id : string
+  ; real_size: int
+  ; real_operators: string list }
+
 
 let is_usable_cache f =
   if not (Sys.file_exists "cache") then Unix.mkdir "cache" 0o755;
@@ -71,8 +77,6 @@ let cached_http_get ?(use_cached_copy = true) url =
 
 
 let rec cached_http_post ?(use_cached_copy = true) url body =
-
-  printf "train: %s %s" url body;
 
   assert_key_set ();
 
@@ -127,14 +131,14 @@ let get_status ?(use_cached_copy=true) () =
   ; num_requests = nr }
 
 
-let get_training ?(use_cached_copy:bool = true) size =
+let get_training ?(use_cached_copy:bool = true) size operator_mode =
 
-  (* let req_json = sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size in *)
-  let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in
-  (* let req_json = sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size in *)
-  (* let req_json = Yojson.Safe.to_string ( `Assoc [ ("size", `Int size) ] ) in *)
-  Helpers.say "%s" req_json;
-
+  let req_json =
+    if operator_mode = "" || size = 42 then sprintf "{\"size\":%d}" size
+    else if operator_mode = "none" then sprintf "{\"size\":%d,\"operators\":[]}" size
+    else if operator_mode = "fold" then sprintf "{\"size\":%d,\"operators\":[\"fold\"]}" size
+    else if operator_mode = "tfold" then sprintf "{\"size\":%d,\"operators\":[\"tfold\"]}" size
+    else failwith ("Unknown operator mode " ^ operator_mode) in
 
   let status_json = cached_http_post ~use_cached_copy:use_cached_copy (sprintf "http://icfpc2013.cloudapp.net/train?auth=%s" !key) req_json in
   let parsed = Yojson.Safe.from_string status_json in
@@ -178,8 +182,24 @@ let guess ?(use_cached_copy:bool=true) id program_source =
   else if status = "error" then failwith message
   else if status = "mismatch" then
     let input = Int64.of_string (List.nth values 0)
-    and expected = Int64.of_string (List.nth values 2)
+    and expected = Int64.of_string (List.nth values 1)
     in (input, expected)
 
   else failwith (Printf.sprintf "Unknown status %s" status)
+
+
+let get_real_problem id =
+  let json_p = Yojson.Safe.from_file "web/problems/current.js" in
+
+  let rec find_matching_problem = function
+    | elem :: rest -> if Helpers.json_get_string elem "id" = id then
+      { real_id = id
+      ; real_size = Helpers.json_get_int elem "size"
+      ; real_operators = Helpers.json_get_string_list elem "operators" 
+      } else find_matching_problem rest
+    | [] -> failwith "No such problem"
+  in
+  match json_p with
+  | `List problems -> find_matching_problem problems
+  | _ -> failwith "Weird real problem structure"
 

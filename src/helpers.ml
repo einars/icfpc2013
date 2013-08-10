@@ -69,3 +69,19 @@ let json_get_int json_obj search_key =
 
 let json_list_of_strings sl =
   `List (List.map (fun n -> `String n) sl)
+
+let make_rotator () =
+  let hi = ref 0
+  and rot = ref 0
+  and ks = ref 0
+  and rot_chars = "\\|/-" in
+  fun () ->
+    hi := !hi + 1;
+    if !hi = 1000 then (
+      hi := 0;
+      ks := !ks + 1;
+      rot := (!rot + 1) mod 4;
+      Printf.printf "Solving (%dk) %c\r%!" !ks rot_chars.[ !rot ]
+    );
+
+

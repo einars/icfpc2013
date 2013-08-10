@@ -18,6 +18,15 @@ let assert_eq_parse prg parsed =
     raise Assertion_failed
   )
 
+let assert_eval prg param expected =
+  let parsed = Program.parse prg in
+  let res = Program.eval parsed param in
+  if res <> expected then (
+    Printf.printf "Evaluation failed:\n%s\nParam:  %016Lx\nExpect: %016Lx\nGot:    %016Lx\n%!"
+      prg param expected res;
+    raise Assertion_failed
+  )
+
 let sample_program_1 = "(lambda (foo) 0)"
 let sample_parsed_1:program = "foo", E_0
 
@@ -49,6 +58,10 @@ let run_tests () =
     assert_eq_parse sample_program_2 sample_parsed_2;
     assert_eq_parse sample_program_3 sample_parsed_3;
     assert_eq complicated_prg (Program.program_to_s (Program.parse complicated_prg));
-    Helpers.say "Parsing tests passed.";
+
+    (* eval test *)
+    assert_eval "(lambda (x) (not (or (if0 x x 1) x)))" 0x2000000000000000L 0xDFFFFFFFFFFFFFFEL;
+
+    Helpers.say "Tests passed.";
     true
   ) with Assertion_failed -> false

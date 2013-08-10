@@ -13,3 +13,5 @@ val json_get_string : json -> string -> string
 val json_get_string_list : json -> string -> string list
 val json_get_int : json -> string -> int
 val json_list_of_strings : string list -> json
+
+val make_rotator : unit -> unit -> unit

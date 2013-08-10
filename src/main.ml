@@ -24,9 +24,11 @@ let _ =
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
     let rec oompaloompa box =
+      try (
       let best = Guesser.solve box in
       let box = Guesser.step2 box best in
       oompaloompa box
+      ) with Server.Solved _ -> Helpers.say "Solved!";
     in
 
     if op = "ouch" then begin
@@ -39,13 +41,29 @@ let _ =
     end;
 
 
+    if op = "live" then begin
+      let p = Server.get_real_problem Sys.argv.(2) in
+      Helpers.say "id   = %s" p.real_id;
+      Helpers.say "size = %d" p.real_size;
+      Helpers.say "ops  = %s" (ExtString.String.join "; " p.real_operators);
+
+      for seconds = 4 downto 1 do
+        Printf.printf "Will solve a REAL LIVE problem in %d seconds. Ctrl-C to cancel!\r%!" seconds;
+        ignore(Unix.select [] [] [] 1.0);
+      done;
+      Printf.printf "                                                                  \r%!";
+
+      oompaloompa (Guesser.start (p.real_size + 2) (List.append p.real_operators [ "or"; "xor"; "and"; "shl1"; "shr1"; "shr4"; "shr16" ]) p.real_id)
+
+    end;
+
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true 10 in
+      let te = Server.get_training ~use_cached_copy:true (int_of_string Sys.argv.(2)) (try Sys.argv.(3) with _ -> "") in
       Helpers.say "challenge = %s" te.challenge;
       Helpers.say "size      = %d" te.size;
       Helpers.say "id        = %s" te.id;
       Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
-      oompaloompa (Guesser.start te.size te.operators te.id)
+      oompaloompa (Guesser.start (te.size + 8) te.operators te.id)
     end;
 
 
@@ -54,10 +72,6 @@ let _ =
       Helpers.say "contest_score  = %d" st.contest_score;
       Helpers.say "training_score = %d" st.training_score;
       Helpers.say "num_request    = %d" st.num_requests;
-    end;
-
-    if op = "xxx" then begin
-      run_with [0xffffffffffffffffL] prg;
     end;
 
     if op = "benchmark" then begin
