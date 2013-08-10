@@ -1,6 +1,7 @@
 (* vim: set ts=2 tw=0 foldmethod=marker : *)
 
 open Server
+open Guesser
 
 let (==) a b = failwith "Use [=] instead of [==]!"
 let (!=) a b = failwith "Use [<>] instead of [!=]!"
@@ -22,18 +23,28 @@ let _ =
 
     Server.set_key "0471LR96Uo35Eet4lsIzkYr8bcVDtdWjbv9WyBsovpsH1H";
 
+    let rec oompaloompa box =
+      Helpers.say "solving...";
+      let best = Guesser.solve box in
+      Helpers.say "reiterating...";
+      let box = Guesser.step2 box best in
+      oompaloompa box
+    in
+
+    if op = "ouch" then begin
+      let prob_id = "0UTVqJH86wBbJljF2shldH1A" in
+      oompaloompa (Guesser.start 5 ["shl1"; "xor"] prob_id)
+
+    end;
+
+
     if op = "guess" then begin
-      let te = Server.get_training ~use_cached_copy:true ~size:20 () in
+      let te = Server.get_training ~use_cached_copy:true ~size:26 () in
       Helpers.say "challenge = %s" te.challenge;
       Helpers.say "size      = %d" te.size;
       Helpers.say "id        = %s" te.id;
       Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
 
-      let rec oompaloompa box =
-        let best = Guesser.solve box in
-        let box = Guesser.step2 box best in
-        oompaloompa box
-      in
       oompaloompa (Guesser.start te.size te.operators te.id)
 
     end;

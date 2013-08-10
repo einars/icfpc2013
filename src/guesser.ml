@@ -10,8 +10,8 @@ type guess_t =
 
 type guessbox_t =
   { available_ops : string list
-  ; id : string
-  ; size : int
+  ; program_id : string
+  ; program_size : int
   ; mutable guesses : guess_t list
   ; mutable inputs : int64 list
   ; mutable outputs : int64 list
@@ -70,8 +70,8 @@ let build_program size allowed_ops dna =
 
   in
   let expr, expr_size = get_expr 0 in
-  if expr_size <> size - 1 then (
-    (* Helpers.say "uncool (%d) %s" expr_size (Program.expr_to_s expr); *)
+  if expr_size < size (* - 1 *) then (
+    Helpers.say "uncool (%d) %s" expr_size (Program.expr_to_s expr);
     raise Nuff;
   );
   "x", expr
@@ -98,8 +98,8 @@ let start size ops id =
   let first_inputs = [ 0x6666666666666666L; 0xfedcba9876543210L; 0x0123456789abcdefL; 0x0101010101010101L ] in
 
   { available_ops = ops
-  ; id = id
-  ; size = size
+  ; program_id = id
+  ; program_size = size
   ; guesses = []
   (* ; guesses = (initial_guesses size) *)
   ; inputs = first_inputs
@@ -109,14 +109,14 @@ let start size ops id =
 
 let solve guessbox =
   Helpers.say "Guesser";
-  Helpers.say "id   = %s" guessbox.id;
-  Helpers.say "size = %d" guessbox.size;
+  Helpers.say "id   = %s" guessbox.program_id;
+  Helpers.say "size = %d" guessbox.program_size;
   Helpers.say "inputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.inputs));
   Helpers.say "outputs = %s" (ExtString.String.join ", " (List.map (Printf.sprintf "%16Lx") guessbox.outputs));
 
   try (
   while true do
-    let g = (build_program guessbox.size guessbox.available_ops (good_random_guess guessbox.size guessbox.available_ops).dna) in
+    let g = (build_program guessbox.program_size guessbox.available_ops (good_random_guess guessbox.program_size guessbox.available_ops).dna) in
     (* Helpers.say "checking %s" (Program.program_to_s g); *)
     if List.for_all2 (fun a b -> Program.eval g a = b) guessbox.inputs guessbox.outputs
     then raise (Solved g)
@@ -126,7 +126,7 @@ let solve guessbox =
 
 
 let step2 guessbox solution_tree =
-  let n, r = Server.guess ~use_cached_copy:true guessbox.id (Program.program_to_s solution_tree) in
+  let n, r = Server.guess ~use_cached_copy:true guessbox.program_id (Program.program_to_s solution_tree) in
   { guessbox with inputs = n :: guessbox.inputs; outputs = r :: guessbox.outputs }
 
 

@@ -8,8 +8,8 @@ type guess_t =
 
 type guessbox_t =
   { available_ops : string list
-  ; id : string
-  ; size : int
+  ; program_id : string
+  ; program_size : int
   ; mutable guesses : guess_t list
   ; mutable inputs : int64 list
   ; mutable outputs : int64 list
