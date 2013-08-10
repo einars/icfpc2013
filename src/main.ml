@@ -45,15 +45,15 @@ let _ =
       let te = Server.get_real Sys.argv.(2) in
       Helpers.say "size      = %d" te.problem_size;
       Helpers.say "id        = %s" te.problem_id;
-      Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
+      Helpers.say "operators = %s" (ExtString.String.join ", " (Array.to_list te.operators));
       ignore( Guesser.do_your_thing te );
     end;
 
-    if op = "guess" then begin
+    if (op = "guess" || op = "train") then begin
       let te = Server.get_training (int_of_string Sys.argv.(2)) (try Sys.argv.(3) with _ -> "") in
       Helpers.say "size      = %d" te.problem_size;
       Helpers.say "id        = %s" te.problem_id;
-      Helpers.say "operators = %s" (ExtString.String.join ", " te.operators);
+      Helpers.say "operators = %s" (ExtString.String.join ", " (Array.to_list te.operators));
       ignore( Guesser.do_your_thing te );
     end;
 

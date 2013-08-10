@@ -15,7 +15,7 @@ let assert_key_set () =
 type problem_description_t =
   { problem_id : string
   ; problem_size : int
-  ; operators : string list }
+  ; operators : string array }
 
 
 type contest_status_t =
@@ -108,7 +108,7 @@ let get_training size operator_mode =
   Helpers.say " :: challenge %s" (Helpers.json_get_string parsed "challenge");
   { problem_id = Helpers.json_get_string parsed "id"
   ; problem_size = Helpers.json_get_int parsed "size"
-  ; operators = Helpers.json_get_string_list parsed "operators" }
+  ; operators = Array.of_list ( Helpers.json_get_string_list parsed "operators" ) }
 
 
 let get_eval id params =
@@ -158,7 +158,7 @@ let get_real id =
     | elem :: rest -> if Helpers.json_get_string elem "id" = id then
       { problem_id = id
       ; problem_size = Helpers.json_get_int elem "size"
-      ; operators = Helpers.json_get_string_list elem "operators"
+      ; operators = Array.of_list (Helpers.json_get_string_list elem "operators")
       } else find_matching_problem rest
     | [] -> failwith "No such problem"
   in

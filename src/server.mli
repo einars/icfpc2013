@@ -9,7 +9,7 @@ type contest_status_t =
 type problem_description_t =
   { problem_id : string
   ; problem_size : int
-  ; operators : string list }
+  ; operators : string array }
 
 
 val get_status : unit -> contest_status_t

@@ -30,12 +30,12 @@ let default_guess_context =
   ; allow_const = true
   }
 
-let build_program size allowed_ops =
+let build_program desc =
 
   let rec get_expr context ptr =
-    if ptr > size then raise Nuff;
+    if ptr > desc.problem_size then raise Nuff;
 
-    let n_ops = List.length allowed_ops in
+    let n_ops = Array.length desc.operators in
     let adj = if context.inside_fold then 5 else 3 in
     let r = (Random.int (n_ops + adj)) - adj in
     let nptr = ptr + 1 in
@@ -52,7 +52,7 @@ let build_program size allowed_ops =
     else if r = -1 then Identifier "x", nptr
     else
 
-    let op = List.nth allowed_ops r in
+    let op = desc.operators.(r) in
 
     if op = "not" && (not context.allow_not) then raise Nuff;
     if op = "fold" && (not context.allow_fold) then raise Nuff;
@@ -108,10 +108,10 @@ let build_program size allowed_ops =
   "x", expr
 
 
-let good_random_guess size allowed_ops =
+let good_random_guess desc =
 
   let rec stumble () =
-    try build_program size allowed_ops with _ -> stumble ()
+    try build_program desc with _ -> stumble ()
   in
   stumble ()
 
@@ -154,7 +154,7 @@ let improve_via_server_guess desc guess =
 let rec process_random_stuff desc verify_fn : unit =
   let rot = Helpers.make_rotator () in
   let rec loop () =
-    verify_fn ( good_random_guess desc.problem_size desc.operators );
+    verify_fn ( good_random_guess desc );
     rot ();
     loop ()
   in
