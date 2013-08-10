@@ -47,13 +47,14 @@ let _ =
       Helpers.say "size = %d" p.real_size;
       Helpers.say "ops  = %s" (ExtString.String.join "; " p.real_operators);
 
-      for seconds = 4 downto 1 do
+      for seconds = 3 downto 1 do
         Printf.printf "Will solve a REAL LIVE problem in %d seconds. Ctrl-C to cancel!\r%!" seconds;
         ignore(Unix.select [] [] [] 1.0);
       done;
       Printf.printf "                                                                  \r%!";
 
-      oompaloompa (Guesser.start (p.real_size + 2) (List.append p.real_operators [ "or"; "xor"; "and"; "shl1"; "shr1"; "shr4"; "shr16" ]) p.real_id)
+      (* oompaloompa (Guesser.start (p.real_size + 2) (List.append p.real_operators [ "or"; "xor"; "and"; "shl1"; "shr1"; "shr4"; "shr16" ]) p.real_id) *)
+      oompaloompa (Guesser.start (p.real_size + 2) p.real_operators p.real_id)
 
     end;
 

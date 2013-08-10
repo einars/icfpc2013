@@ -43,8 +43,8 @@ let rec with_http_error_handling fn = fun (x) -> (try
   with (Http_client.Http_error (id, msg)) ->
     printf "dead!%!";
     if msg = "Too many requests" then begin
-      printf "Too many requests, sleeping for 20s%!";
-      for i = 0 to 20 do
+      printf "Too many requests, sleeping for 3s%!";
+      for i = 1 to 3 do
         printf ".%!";
         ignore( Unix.select [] [] [] 1.0 );
       done;
@@ -102,8 +102,8 @@ let rec cached_http_post ?(use_cached_copy = true) url body =
       run_req url body 
     with Http_client.Http_error (id, msg) ->
       if msg = "Too many requests" then begin
-        printf "Too many requests, sleeping for 20s%!";
-        for i = 0 to 20 do
+        printf "Too many requests, sleeping for 3s%!";
+        for i = 1 to 3 do
           printf ".%!";
           ignore( Unix.select [] [] [] 1.0 );
         done;
