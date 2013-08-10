@@ -153,11 +153,20 @@ let improve_via_server_guess desc guess =
 
 let rot = Helpers.make_rotator ()
 
+exception Abort_this_crap
+
 let rec smart_iterate_problemspace desc verify_fn : unit =
 
   let n_ops = Array.length desc.operators in
 
+  let ttl = ref 1000 in
+
   let rec with_matching_exprs ptr context builder_f =
+
+    if ptr > 0 then (
+      ttl := !ttl - 1;
+      if !ttl = 0 then raise Abort_this_crap;
+    );
 
     let nptr = ptr + 1 in
     let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
@@ -166,15 +175,17 @@ let rec smart_iterate_problemspace desc verify_fn : unit =
     let do_expr r =
       if ptr > desc.problem_size then raise Nuff;
 
-      (* let op = desc.operators.(r) in *)
-
-      if r = -5 then if context.inside_fold then (builder_f (Identifier "y1") nptr);
-      if r = -4 then if context.inside_fold then (builder_f (Identifier "y2") nptr);
-      if r = -3 then if context.allow_const && context.allow_zero then (builder_f E_0 nptr);
+      if r = -1 then if context.allow_const && context.allow_zero then (builder_f E_0 nptr);
       if r = -2 then if context.allow_const then (builder_f E_1 nptr);
-      if r = -1 then ( builder_f (Identifier "x") nptr );
+      if r = -3 then ( builder_f (Identifier "x") nptr );
+      if r = -3 && context.inside_fold then begin
+        (builder_f (Identifier "y1") nptr );
+        (builder_f (Identifier "y2") nptr );
+      end;
 
-      if r >= 0 && r < Array.length desc.operators then begin
+      if r >= 0 then begin
+        (* let op = desc.operators.(r) in *)
+
         let op = desc.operators.(r) in
         if op = "not" && (not context.allow_not) then raise Nuff;
         if op = "fold" && (not context.allow_fold) then raise Nuff;
@@ -183,67 +194,66 @@ let rec smart_iterate_problemspace desc verify_fn : unit =
         if op = "tfold" && (context.inside_fold) then raise Nuff;
         if op = "bonus" then raise Nuff;
 
-      (* op3 *)
-      if op = "if0" then (
-        with_matching_exprs nptr {n_context with allow_const = false }
-          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
-              (fun e2 nptr -> with_matching_exprs nptr n_context
-                  (fun e3 nptr -> builder_f (If0 (e1, e2, e3)) nptr)))
-      ) else
-      (* op1 *)
-      if op = "not" then (
-        with_matching_exprs nptr {n_context with allow_not = false}
-          (fun e1 nptr -> builder_f (Not e1) nptr)
-      ) else
-      if op = "shl1" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> builder_f (Shl1 e1) nptr)
-      ) else
-      if op = "shr1" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> builder_f (Shr1 e1) nptr)
-      ) else
-      if op = "shr4" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> builder_f (Shr4 e1) nptr)
-      ) else
-      if op = "shr16" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> builder_f (Shr16 e1) nptr)
-      ) else
-      (* op2 *)
-      if op = "and" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
-              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
-      ) else
-      if op = "or" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
-              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
-      ) else
-      if op = "xor" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
-              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
-      ) else
-      if op = "plus" then (
-        with_matching_exprs nptr context_skip_zero
-          (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
-              (fun e2 nptr -> builder_f (And (e1, e2)) nptr))
-      ) else
-      (* op2 *)
-      if op = "tfold" then (
-        with_matching_exprs nptr { n_context with allow_fold = false }
-          (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
-              (fun e2 nptr -> builder_f (Fold (e1, E_0, "y1", "y2", e2)) nptr))
-      ) else
-      if op = "fold" then (
-        with_matching_exprs nptr { n_context with allow_fold = false }
-          (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false }
-              (fun e2 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
-                  (fun e3 nptr -> builder_f (Fold (e1, e2, "y1", "y2", e3)) nptr)))
-      )
+        (* op3 *)
+        if op = "if0" then (
+          with_matching_exprs nptr {n_context with allow_const = false }
+            (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+                (fun e2 nptr -> with_matching_exprs nptr n_context
+                    (fun e3 nptr -> builder_f (If0 (e1, e2, e3)) nptr )))
+        ) else
+        (* op1 *)
+        if op = "not" then (
+          with_matching_exprs nptr {n_context with allow_not = false}
+            (fun e1 nptr -> builder_f (Not e1) nptr )
+        ) else
+        if op = "shl1" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> builder_f (Shl1 e1) nptr )
+        ) else
+        if op = "shr1" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> builder_f (Shr1 e1) nptr )
+        ) else
+        if op = "shr4" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> builder_f (Shr4 e1) nptr )
+        ) else
+        if op = "shr16" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> builder_f (Shr16 e1) nptr )
+        ) else
+        (* op2 *)
+        if op = "and" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+                (fun e2 nptr -> builder_f (And (e1, e2)) nptr ))
+        ) else
+        if op = "or" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+                (fun e2 nptr -> builder_f (And (e1, e2)) nptr ))
+        ) else
+        if op = "xor" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+                (fun e2 nptr -> builder_f (And (e1, e2)) nptr ))
+        ) else
+        if op = "plus" then (
+          with_matching_exprs nptr context_skip_zero
+            (fun e1 nptr -> with_matching_exprs nptr context_skip_zero
+                (fun e2 nptr -> builder_f (And (e1, e2)) nptr ))
+        ) else
+        if op = "tfold" then (
+          with_matching_exprs nptr { n_context with allow_fold = false }
+            (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
+                (fun e2 nptr -> builder_f (Fold (e1, E_0, "y1", "y2", e2)) nptr ))
+        ) else
+        if op = "fold" then (
+          with_matching_exprs nptr { n_context with allow_fold = false }
+            (fun e1 nptr -> with_matching_exprs nptr { n_context with allow_fold = false }
+                (fun e2 nptr -> with_matching_exprs nptr { n_context with allow_fold = false; inside_fold = true }
+                    (fun e3 nptr -> builder_f (Fold (e1, e2, "y1", "y2", e3)) nptr )))
+        ) else failwith ("what is " ^ op);
       end
 
       in
@@ -263,17 +273,18 @@ let rec smart_iterate_problemspace desc verify_fn : unit =
         try do_expr i with Nuff -> ()
       done
       *)
-      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
-      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
-      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
-      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
-      try do_expr ((Random.int (n_ops + 5)) - 5) with Nuff -> ();
-      ()
+      for i = 1 to (* n_ops - ptr + *) 2 do
+        try do_expr ((Random.int (n_ops + 3)) - 3) with Nuff -> ();
+      done
 
   in
 
   while true do
-    with_matching_exprs 0 default_guess_context (fun e nptr -> rot() ; if nptr > 1 then verify_fn ("x", e))
+      ttl := 50000;
+      try
+        (* with_matching_exprs 0 default_guess_context (fun e nptr -> rot() ; Helpers.say "%s" (Program.to_s ("x", e)); if nptr > 1 then verify_fn ("x", e)); *)
+        with_matching_exprs 0 default_guess_context (fun e nptr -> if nptr > 1 then ( rot(); verify_fn ("x", e)));
+      with Abort_this_crap -> ();
   done
 
 let rec process_random_stuff desc verify_fn : unit =
