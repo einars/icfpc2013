@@ -46,7 +46,7 @@ if ($requested_json == 'fold.json') {
 if ($requested_json == 'tfold.json') {
     dump_json($probs->tfold);
 }
-if ($requested_json == 'tfold.json') {
+if ($requested_json == 'bonus.json') {
     dump_json($probs->bonus);
 }
 

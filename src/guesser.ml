@@ -48,11 +48,11 @@ let rec process_random_stuff desc verify_fn : unit =
       let len = List.length l in
       List.nth l (Random.int len) in
 
-    let rec get_expr context ptr =
+    let rec get_expr context ptr is_terminal =
       if ptr > desc.problem_size then raise Nuff;
 
       let n_ops = Array.length desc.operators in
-      let adj = if ptr = 0 then 0 else 3 in
+      let adj = if is_terminal && ptr + 3 < desc.problem_size then 0 else 3 in
       let r = (Random.int (n_ops + adj)) - adj in
       let nptr = ptr + 1 in
 
@@ -73,60 +73,58 @@ let rec process_random_stuff desc verify_fn : unit =
       let op = desc.operators.(r) in
       let op = if is_bonus_mode && ptr = 0 then "if0" else op in
 
-      if op = "not" && (not context.allow_not) then get_expr context ptr else
-      if op = "fold" && (not context.allow_fold) then get_expr context ptr else
-      if op = "tfold" && (not context.allow_fold) then get_expr context ptr else
-      if op = "fold" && nptr > (n_ops - 3) then get_expr context ptr else
-      if op = "tfold" && nptr > (n_ops - 3) then get_expr context ptr else
+      if op = "not" && (not context.allow_not) then get_expr context ptr is_terminal else
+      if op = "fold" && (not context.allow_fold) then get_expr context ptr is_terminal else
+      if op = "tfold" && (not context.allow_fold) then get_expr context ptr is_terminal else
+      if op = "fold" && nptr > (n_ops - 3) then get_expr context ptr is_terminal else
+      if op = "tfold" && nptr > (n_ops - 3) then get_expr context ptr is_terminal else
 
       if op = "if0" then
-        let e1, nptr = get_expr {n_context with allow_const = false } nptr in
-        let e2, nptr = get_expr n_context nptr in
-        let e3, nptr = get_expr n_context nptr in
+        let e1, nptr = get_expr {n_context with allow_const = false } nptr false in
+        let e2, nptr = get_expr n_context nptr false in
+        let e3, nptr = get_expr n_context nptr is_terminal in
         If0 (e1, e2, e3), nptr
       else
-        if op = "not" then let e1, nptr = get_expr { n_context with allow_not = false } nptr in (Not e1), nptr
+        if op = "not" then let e1, nptr = get_expr { n_context with allow_not = false } nptr is_terminal in (Not e1), nptr
       else if op = "fold" then
-          let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
-          let e2, nptr = get_expr { n_context with allow_fold = false } nptr in
-          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+          let e1, nptr = get_expr { n_context with allow_fold = false } nptr false in
+          let e2, nptr = get_expr { n_context with allow_fold = false } nptr false in
+          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr is_terminal in
           Fold (e1, e2, "y1", "y2", e3), nptr
       else if op = "tfold" then
-          let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
-          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+          let e1, nptr = get_expr { n_context with allow_fold = false } nptr false in
+          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr is_terminal in
           Fold (e1, E_0, "y1", "y2", e3), nptr
-      else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr in (Shl1 e1), nptr
-      else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr in (Shr1 e1), nptr
-      else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr in (Shr4 e1), nptr
-      else if op = "shr16" then let e1, nptr = get_expr context_skip_zero nptr in (Shr16 e1), nptr
+      else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr is_terminal in (Shl1 e1), nptr
+      else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr is_terminal in (Shr1 e1), nptr
+      else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr is_terminal in (Shr4 e1), nptr
+      else if op = "shr16" then let e1, nptr = get_expr context_skip_zero nptr is_terminal in (Shr16 e1), nptr
       else if op = "and" then
-        let e1, nptr = get_expr context_skip_zero nptr in
-        let e2, nptr = get_expr context_skip_zero nptr in
+        let e1, nptr = get_expr context_skip_zero nptr false in
+        let e2, nptr = get_expr context_skip_zero nptr is_terminal in
         And (e1, e2), nptr
       else if op = "or" then
-        let e1, nptr = get_expr context_skip_zero nptr in
-        let e2, nptr = get_expr context_skip_zero nptr in
+        let e1, nptr = get_expr context_skip_zero nptr false in
+        let e2, nptr = get_expr context_skip_zero nptr is_terminal in
         Or (e1, e2), nptr
       else if op = "xor" then
-        let e1, nptr = get_expr context_skip_zero nptr in
-        let e2, nptr = get_expr context_skip_zero nptr in
+        let e1, nptr = get_expr context_skip_zero nptr false in
+        let e2, nptr = get_expr context_skip_zero nptr is_terminal in
         Xor (e1, e2), nptr
       else if op = "plus" then
-        let e1, nptr = get_expr context_skip_zero nptr in
-        let e2, nptr = get_expr context_skip_zero nptr in
+        let e1, nptr = get_expr context_skip_zero nptr false in
+        let e2, nptr = get_expr context_skip_zero nptr is_terminal in
         Plus (e1, e2), nptr
-      else if op = "bonus" then get_expr context nptr
+      else if op = "bonus" then get_expr context nptr is_terminal
       else ( Helpers.say "What is %s?" op; raise Nuff )
 
     in
 
     let expr, expr_size =
     if is_bonus_mode then begin
-      (* Helpers.say "Running in bonus mode"; *)
-      get_expr { default_guess_context with allow_fold = false } 0
+      get_expr { default_guess_context with allow_fold = false } 0 true
     end else begin
-      (* Helpers.say "Running in classic mode"; *)
-      get_expr default_guess_context 0
+      get_expr default_guess_context 0 true
     end in
     (* Helpers.say "%s" (Program.expr_to_s expr); *)
 
