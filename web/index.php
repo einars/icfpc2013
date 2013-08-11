@@ -71,6 +71,8 @@ printf('<div class="percentage"><table><tr><th rowspan="2">%.1f<span>%%</span></
 printf('<form method="post" action="?"><input type="hidden" name="update" value="yes"><button type="submit">Refresh from ICFP server (%s, %d min ago)</button></form>',
     date('H:i', filectime('problems/current.js')), (time() - filectime('problems/current.js')) / 60 );
 
+
+
 printf('Solved: %d of %d, failed: %d'
     , sizeof($probs->solved)
     , $probs->n_total
@@ -84,6 +86,18 @@ if ($probs->in_progress) {
 
 echo '<br>';
 
+$s_left = mktime(2, 0, 0, 8, 12, 2013) - time ();
+if ($s_left > 0) {
+    $hrs_left = floor($s_left / 3600);
+    $left = $s_left % 3600;
+    $min_left = floor($left / 60);
+    printf('<br>Time left: <b>%dh %02dm</b> (%d sec / minor prob)<br>'
+        , $hrs_left
+        , $min_left
+        , ($s_left / (sizeof($probs->simple) + sizeof($probs->fold) + sizeof($probs->tfold)))
+    );
+}
+
 
 printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold: %d</a>, <a href="tfold.json">tfold: %d</a> <a href="bonus.json">bonus: %d</a>'
     , sizeof($probs->simple)
@@ -92,12 +106,12 @@ printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold:
     , sizeof($probs->bonus)
 );
 echo '</div>';
+echo '<h2 id="simple">Simple problems</h2>';
+print_problems($probs->simple, 'p-simple');
 echo '<h2 id="fold">fold problems</h2>';
 print_problems($probs->fold, 'p-fold');
 echo '<h2 id="tfold">Tfold problems</h2>';
 print_problems($probs->tfold, 'p-tfold');
-echo '<h2 id="simple">Simple problems</h2>';
-print_problems($probs->simple, 'p-simple');
 echo '<h2 id="bonus">Bonus problems</h2>';
 print_problems($probs->bonus, 'p-bonus');
 
