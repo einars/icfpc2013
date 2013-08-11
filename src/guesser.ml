@@ -332,7 +332,7 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
     let bit_difference = 0 in
 
     (* if res = exp then 100 else 0 in *)
-    if bits = 64 then 10000 else bits in
+    if bits = 64 then 0 else 64 - bits in
 
 
   (*
@@ -379,7 +379,7 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       )
     in
 
-    take n (List.sort (fun a b -> if a.pe_score <> b.pe_score then b.pe_score - a.pe_score else (if Random.bool () then 1 else -1) ) l)
+    take n (List.sort (fun a b -> if a.pe_score <> b.pe_score then - b.pe_score + a.pe_score else (if Random.bool () then 1 else -1) ) l)
     (* take n (List.sort (fun a b -> b.pe_score - a.pe_score) l) *)
     in
 

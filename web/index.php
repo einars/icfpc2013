@@ -47,7 +47,24 @@ if ($requested_json == 'tfold.json') {
     dump_json($probs->tfold);
 }
 if ($requested_json == 'bonus.json') {
-    dump_json($probs->bonus);
+    $size = $_REQUEST['size'];
+    $out = $probs->bonus;
+    if ($size) {
+        if (strpos($size, 'r') !== false) {
+            $size = str_replace('r', '', $size);
+            $probs->bonus = array_reverse($probs->bonus);
+        }
+        $used_sizes = explode(',', $size);
+        $out = array();
+        $sizes = array();
+        foreach($used_sizes as $s) $sizes[$s] = $s;
+        foreach($probs->bonus as $p) {
+            if (isset($sizes[ $p['size'] ]) ) {
+                $out[] = $p;
+            }
+        }
+    }
+    dump_json($out);
 }
 
 html_prologue();
@@ -91,10 +108,11 @@ if ($s_left > 0) {
     $hrs_left = floor($s_left / 3600);
     $left = $s_left % 3600;
     $min_left = floor($left / 60);
-    printf('<br>Time left: <b>%dh %02dm</b> (%d sec / minor prob)<br>'
+    printf('<br>Time left: <b>%dh %02dm</b> (%d probs left: %ds/prob)<br>'
         , $hrs_left
         , $min_left
-        , ($s_left / (sizeof($probs->simple) + sizeof($probs->fold) + sizeof($probs->tfold)))
+        , ((sizeof($probs->bonus) + sizeof($probs->simple) + sizeof($probs->fold) + sizeof($probs->tfold)))
+        , ($s_left / (sizeof($probs->bonus) + sizeof($probs->simple) + sizeof($probs->fold) + sizeof($probs->tfold)))
     );
 }
 
@@ -106,14 +124,15 @@ printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold:
     , sizeof($probs->bonus)
 );
 echo '</div>';
-echo '<h2 id="tfold">Tfold problems</h2>';
-print_problems($probs->tfold, 'p-tfold');
-echo '<h2 id="bonus">Bonus problems</h2>';
+#echo '<h2 id="bonus">Bonus problems</h2>';
 print_problems($probs->bonus, 'p-bonus');
-echo '<h2 id="simple">Simple problems</h2>';
-print_problems($probs->simple, 'p-simple');
-echo '<h2 id="fold">fold problems</h2>';
-print_problems($probs->fold, 'p-fold');
+
+# echo '<h2 id="tfold">Tfold problems</h2>';
+# print_problems($probs->tfold, 'p-tfold');
+# echo '<h2 id="simple">Simple problems</h2>';
+# print_problems($probs->simple, 'p-simple');
+# echo '<h2 id="fold">fold problems</h2>';
+# print_problems($probs->fold, 'p-fold');
 
 html_epilogue();
 
@@ -222,7 +241,9 @@ function html_prologue()
 {
     echo <<<CSS
 <html><head>
+
     <meta charset="utf8">
+<meta http-equiv="refresh" content="30">
 <title>ICFP2013</title>
 <style>
 * {
@@ -350,6 +371,15 @@ function html_epilogue()
 function dump_json($probs)
 {
     Header('Content-type: text/json');
+    if (substr($probs[0]['id'], 0, 3) == '2TU') {
+        array_shift($probs);
+    }
+    if (substr($probs[0]['id'], 0, 3) == '3z3') {
+        array_shift($probs);
+    }
+    if (substr($probs[0]['id'], 0, 3) == '4Te') {
+        array_shift($probs);
+    }
     echo json_encode($probs);
     exit;
 }

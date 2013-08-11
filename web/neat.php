@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta http-equiv="refresh" content="30">
 <style>
 i {
     background: #3c3;
@@ -8,6 +9,7 @@ table {
     border-collapse: collapse;
     float: left;
     margin-right: 20px;
+    margin-bottom: 10px;
 }
 td, th {
     font-size: 12px;
@@ -41,6 +43,7 @@ echo '<div style="font-family: source code pro, monaco, monospace">';
 gfx('simple', $problems->simple);
 gfx('fold', $problems->fold);
 gfx('tfold', $problems->tfold);
+gfx('bonus', $problems->bonus);
 echo '</div>';
 
 function gfx($text, $probs) {
@@ -49,21 +52,29 @@ function gfx($text, $probs) {
     foreach($probs as $prob) {
         $title = $text . ':' . $prob['size'];
         if ( ! isset($runs[$title])) {
-            $runs[$title] = '';
+            $runs[$title] = array();
         }
 
         if ( ! isset($prob['solved'])) {
-            $runs[$title] .= '.';
+            $runs[$title][] = '.';
         } else {
             if ( ! $prob['solved'] and $prob['timeLeft']) {
-                $runs[$title] .= '<span class="run">•</span>';
+                $runs[$title][] = '<span class="run">•</span>';
             } else {
-                $runs[$title] .= $prob['solved'] ? '<i>&nbsp;</i>' : '<span>&nbsp;</span>';
+                $runs[$title][] = $prob['solved'] ? '<i>&nbsp;</i>' : '<span>&nbsp;</span>';
             }
         }
     }
     foreach($runs as $k=>$v) {
-        printf('<tr><th>%20s</th><td>%s</td></tr>', $k, $v);
+        if (sizeof($v) > 20) {
+
+            for ($i = 0; $i < sizeof($v) / 20; $i++) {
+                printf('<tr><th>%20s</th><td>%s</td></tr>', $i == 0 ? $k : '', implode('', array_slice($v, $i * 20, 20)));
+            }
+
+        } else {
+            printf('<tr><th>%20s</th><td>%s</td></tr>', $k, implode('', $v));
+        }
     }
     echo '</table>';
 }
