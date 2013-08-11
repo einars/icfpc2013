@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <style>
 i {
     background: #3c3;
@@ -10,13 +11,23 @@ table {
 }
 td, th {
     font-size: 12px;
+padding-top: 0;
+padding-bottom: 1px;
+}
+td {
+color: #999;
 }
 th {
 font-weight: normal;
 padding-right: 10px;
 }
 span {
-    background: #c33;
+    background: #c66;
+color: #111;
+}
+span.run {
+    background: #cf3;
+color: #111;
 }
 </style>
 <?php
@@ -44,7 +55,11 @@ function gfx($text, $probs) {
         if ( ! isset($prob['solved'])) {
             $runs[$title] .= '.';
         } else {
-            $runs[$title] .= $prob['solved'] ? '<i>S</i>' : '<span>X</span>';
+            if ( ! $prob['solved'] and $prob['timeLeft']) {
+                $runs[$title] .= '<span class="run">•</span>';
+            } else {
+                $runs[$title] .= $prob['solved'] ? '<i>&nbsp;</i>' : '<span>&nbsp;</span>';
+            }
         }
     }
     foreach($runs as $k=>$v) {

@@ -141,7 +141,7 @@ function print_problems($ps, $class)
             }
             printf('<td class="tt">%s</td>', $p['id']);
             printf('<td>%s</td>', $p['size']);
-            printf('<td>%s</td>', implode('; ', $p['operators']));
+            printf('<td>%s</td>', implode(' ', $p['operators']));
             echo '</tr>';
         }
         echo '</table>';
