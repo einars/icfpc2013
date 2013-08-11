@@ -286,21 +286,26 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
     (try ignore(problem_of_dna dna); dna with Nuff -> usable_random_dna ())
   in
 
-  let count_matching_bits a b =
+  let count_ones a =
     let rec loop accu elem =
       if elem = 0L then accu else
       if Int64.logand elem 1L = 1L
-        then loop accu (Int64.shift_right_logical elem 1)
-        else loop (accu - 1) (Int64.shift_right_logical elem 1) in
-    (loop 64 (Int64.logxor a b)) in
+        then loop (accu + 1) (Int64.shift_right_logical elem 1)
+        else loop accu (Int64.shift_right_logical elem 1) in
+    (loop 0 a) in
+
+  let count_matching_bits a b = 64 - (count_ones (Int64.logxor a b)) in
 
 
   let calculate_single_score p arg exp =
     (* 1 in*)
-    if (Program.eval p arg) = exp then 10 else 0 in
+    let res = (Program.eval p arg) in
 
-    (* let bits = (count_matching_bits (Program.eval p arg) exp) in bits in *)
-    (* let bits = if bits = 64 then 1000 else 0 in bits in *)
+    (* if res = exp then 100 else 0 in *)
+
+    let bits = (count_matching_bits (Program.eval p arg) exp) in
+    let bits = if bits = 64 then 1000 else 0 in
+    (10 - abs ( (count_ones res) - (count_ones exp))) + bits in
     (* bits - (String.length (Program.to_s p)) in *)
     (* (count_matching_bits (Program.eval p arg) exp) in *)
 
@@ -310,7 +315,7 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       raise Candidate_update;
     );
     (List.fold_right2 (fun arg exp acc -> acc + calculate_single_score p arg exp) args exps 0 )
-    - (String.length (Program.to_s p) / 10)
+    + (String.length (Program.to_s p) / 10)
   in
 
   let update_pool_score entry =
@@ -356,9 +361,32 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       with Nuff ->
         single_morph pe in
 
-    List.fold_right (fun elem accu ->
+    let rec cutmorph pe =
+      let dnas = Array.to_list pe.pe_dna in
+      let pos = 1 + Random.int ( Array.length pe.pe_dna - 2 ) in
+      let k1, k2 = ExtList.List.split_nth pos dnas in
+      let new_dna = Array.of_list ( List.append k1 ( (Random.int 0xffff) :: k2) ) in
+      try
+        let p = problem_of_dna new_dna in
+        update_pool_score { pe with pe_dna = new_dna; pe_program = p; }
+      with Nuff ->
+        cutmorph pe in
+
+    let rec uniq x =
+      let rec uniq_help l n = 
+        match l with
+        | [] -> []
+        | h :: t -> if n = h then uniq_help t n else h::(uniq_help t n) in
+    match x with
+        | [] -> []
+        | h::t -> h::(uniq_help (uniq t) h) in
+
+    uniq (List.fold_right (fun elem accu ->
+      (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) ::
+      (cutmorph elem) :: (cutmorph elem) :: (cutmorph elem) ::
+      (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) ::
       (single_morph elem) :: (single_morph elem) :: (single_morph elem) :: elem :: accu
-    ) pool [new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); ]  in
+    ) pool [new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); ])  in
 
 
   let rec improve pool =
@@ -372,10 +400,8 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
     (*
     ignore( Unix.system "clear" );
     print_pool p; *)
-    (*
     let f = List.hd p in
-    Printf.printf "%d %s \r%!" f.pe_score (Program.to_s f.pe_program);
-    *)
+    Printf.printf "%d %s   \r%!" f.pe_score (Helpers.left (Program.to_s f.pe_program) 30);
 
     improve p
   in
