@@ -32,20 +32,24 @@ let default_guess_context =
 
 let build_program desc =
 
+  let n_ops = Array.length desc.operators in
+
   let rec get_expr context ptr =
     if ptr > desc.problem_size then raise Nuff;
 
-    let n_ops = Array.length desc.operators in
     let adj = if context.inside_fold then 5 else 3 in
     let adj = if adj = 3 && not context.allow_zero then 2 else 3 in
     let adj = if (adj = 3 || adj = 2) && not context.allow_const then 1 else adj in
     let r = (Random.int (n_ops + adj)) - adj in
+
+
     let nptr = ptr + 1 in
 
     let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
     let context_skip_zero = { n_context with allow_zero = false } in
 
     (* Helpers.say "%d" r; *)
+
 
     if r = -5 then if context.inside_fold then Identifier "y1", nptr else raise Nuff
     else if r = -4 then if context.inside_fold then Identifier "y2", nptr else raise Nuff
@@ -172,8 +176,21 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
 
   let n_ops = Array.length desc.operators in
 
+  let have_bonus_op () =
+    let rec loop n =
+      if desc.operators.(n) = "bonus" then true
+      else if n = 0 then false
+      else loop (n - 1)
+    in loop (n_ops - 1) in
+
+  let is_bonus = have_bonus_op () in
+
+  if is_bonus then Helpers.say "AAA the bonus game" else Helpers.say "This is not a bonus game";
+
 
   let problem_of_dna dna =
+
+
     let rec with_matching_exprs is_terminal ptr context builder_f =
 
 
@@ -184,7 +201,10 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       let context_skip_zero = { n_context with allow_zero = false } in
 
       let do_expr r =
-        if r < 0 && ((not is_terminal) || (ptr > desc.problem_size - 3)) then begin
+
+        let r = if is_bonus && (ptr = 0) then 0 else r in (* force if0 *)
+
+        if r < 0 && ((not is_terminal) || (ptr > desc.problem_size - 10)) then begin
           if r = -1 then if context.allow_const && context.allow_zero then (builder_f E_0 nptr);
           if r = -2 then if context.allow_const then (builder_f E_1 nptr);
           if r = -3 then ( builder_f (Identifier "x") nptr );
@@ -196,6 +216,15 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
           (* let op = desc.operators.(r) in *)
 
           let op = desc.operators.(r) in
+
+          (*
+          let op =
+            if (op = "not") || (op = "shl1") || (op = "shr1") || (op = "shr4") || op = "shr16" then (
+            [| "not"; "shl1"; "shr1"; "shr4"; "shr16" |].( Random.int 5 )) else op in
+      *)
+
+          let op = if is_bonus && (ptr = 0) then "if0" else op in
+
           if op = "not" && (not context.allow_not) then raise Nuff;
           if op = "fold" && (not context.allow_fold) then raise Nuff;
           if op = "fold" && (context.inside_fold) then raise Nuff;
@@ -212,25 +241,21 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
                       (fun e3 nptr -> builder_f (If0 (e1, e2, e3)) nptr )))
           ) else
           (* op1 *)
-          if op = "not" then (
-            with_matching_exprs is_terminal nptr {n_context with allow_not = false}
-              (fun e1 nptr -> builder_f (Not e1) nptr )
-          ) else
-          if op = "shl1" then (
-            with_matching_exprs is_terminal nptr context_skip_zero
-              (fun e1 nptr -> builder_f (Shl1 e1) nptr )
-          ) else
-          if op = "shr1" then (
-            with_matching_exprs is_terminal nptr context_skip_zero
-              (fun e1 nptr -> builder_f (Shr1 e1) nptr )
-          ) else
-          if op = "shr4" then (
-            with_matching_exprs is_terminal nptr context_skip_zero
-              (fun e1 nptr -> builder_f (Shr4 e1) nptr )
-          ) else
-          if op = "shr16" then (
-            with_matching_exprs is_terminal nptr context_skip_zero
-              (fun e1 nptr -> builder_f (Shr16 e1) nptr )
+            if op = "not" then (
+              with_matching_exprs is_terminal nptr {n_context with allow_not = false}
+                (fun e1 nptr -> builder_f (Not e1) nptr )
+            ) else if op = "shl1" then (
+              with_matching_exprs is_terminal nptr context_skip_zero
+                (fun e1 nptr -> builder_f (Shl1 e1) nptr )
+            ) else if op = "shr1" then (
+              with_matching_exprs is_terminal nptr context_skip_zero
+                (fun e1 nptr -> builder_f (Shr1 e1) nptr )
+            ) else if op = "shr4" then (
+              with_matching_exprs is_terminal nptr context_skip_zero
+                (fun e1 nptr -> builder_f (Shr4 e1) nptr )
+            ) else if op = "shr16" then (
+              with_matching_exprs is_terminal nptr context_skip_zero
+                (fun e1 nptr -> builder_f (Shr16 e1) nptr )
           ) else
           (* op2 *)
           if op = "and" then (
@@ -268,7 +293,7 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
 
         in
           if ptr >= desc.problem_size then raise Nuff;
-          let r = (( dna.(ptr) mod (n_ops + 5) ) - 5) in 
+          let r = (( dna.(ptr) mod (n_ops + 5) ) - 5) in
           (* Printf.printf "%3d %!" r; *)
           do_expr r
 
@@ -302,14 +327,21 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
   let calculate_single_score p arg exp =
     (* 1 in*)
     let res = (Program.eval p arg) in
+    let bits = (count_matching_bits res exp) in
+    let bit_difference = abs ( (count_ones res) - (count_ones exp)) in
+    let bit_difference = 0 in
 
     (* if res = exp then 100 else 0 in *)
+    if bits = 64 then 10000 else bits in
 
+
+  (*
+    let bits = if bits = 64 then 10000 else bits * 10 in
     let bits = (count_matching_bits (Program.eval p arg) exp) in
-    let bits = if bits = 64 then 1000 else 0 in
+    let bits = if bits = 64 then 10000 else bits * 10 in
     2 * (10 - abs ( (count_ones res) - (count_ones exp))) + bits in
     (* bits - (String.length (Program.to_s p)) in *)
-    (* (count_matching_bits (Program.eval p arg) exp) in *)
+    (* (count_matching_bits (Program.eval p arg) exp) in *)*)
 
   let calculate_score p args exps =
     if List.for_all2 (fun arg exp -> Program.eval p arg = exp) args exps then (
@@ -347,8 +379,8 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       )
     in
 
-    (* take n (List.sort (fun a b -> if a.pe_score <> b.pe_score then b.pe_score - a.pe_score else (if Random.bool () then 1 else -1) ) l) *)
-    take n (List.sort (fun a b -> b.pe_score - a.pe_score) l)
+    take n (List.sort (fun a b -> if a.pe_score <> b.pe_score then b.pe_score - a.pe_score else (if Random.bool () then 1 else -1) ) l)
+    (* take n (List.sort (fun a b -> b.pe_score - a.pe_score) l) *)
     in
 
   let morph_pool pool =
@@ -361,8 +393,25 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       try
         let p = problem_of_dna d1 in
         update_pool_score { pe with pe_dna = d1; pe_program = p; }
-      with Nuff ->
-        single_morph pe in
+      with Nuff -> pe in
+
+    let rec shiftorph pe =
+      let dnas = Array.to_list pe.pe_dna in
+      let pos = 1 + Random.int ( Array.length pe.pe_dna - 2 ) in
+      let new_dna = Array.of_list ( (Random.int 0xffff) :: dnas) in
+      try
+        let p = problem_of_dna new_dna in
+        update_pool_score { pe with pe_dna = new_dna; pe_program = p; }
+      with Nuff -> pe in
+
+    let rec unshiftorph pe =
+      let dt = List.tl ( Array.to_list pe.pe_dna ) in
+      let new_dna = Array.of_list ( List.append dt  [Random.int 0xffff] ) in
+      try
+        let p = problem_of_dna new_dna in
+        update_pool_score { pe with pe_dna = new_dna; pe_program = p; }
+      with Nuff -> pe in
+
 
     let rec cutmorph pe =
       let dnas = Array.to_list pe.pe_dna in
@@ -372,11 +421,10 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
       try
         let p = problem_of_dna new_dna in
         update_pool_score { pe with pe_dna = new_dna; pe_program = p; }
-      with Nuff ->
-        cutmorph pe in
+      with Nuff -> pe in
 
     let rec uniq x =
-      let rec uniq_help l n = 
+      let rec uniq_help l n =
         match l with
         | [] -> []
         | h :: t -> if n = h then uniq_help t n else h::(uniq_help t n) in
@@ -386,12 +434,23 @@ let rec smart_iterate_problemspace desc verify_fn input_g : unit =
 
     uniq (List.fold_right (fun elem accu ->
       (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) ::
+      (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) :: (cutmorph (cutmorph elem)) ::
       (cutmorph elem) :: (cutmorph elem) :: (cutmorph elem) ::
       (cutmorph elem) :: (cutmorph elem) :: (cutmorph elem) ::
+      (shiftorph (shiftorph elem)) :: (shiftorph (shiftorph elem)) :: (shiftorph (shiftorph elem)) ::
+      (shiftorph elem) :: (shiftorph elem) :: (shiftorph elem) ::
+      (shiftorph elem) :: (shiftorph elem) :: (shiftorph elem) ::
+      (unshiftorph (unshiftorph elem)) :: (unshiftorph (unshiftorph elem)) :: (unshiftorph (unshiftorph elem)) ::
+      (unshiftorph elem) :: (unshiftorph elem) :: (unshiftorph elem) ::
+      (unshiftorph elem) :: (unshiftorph elem) :: (unshiftorph elem) ::
+      (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) ::
       (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) :: (single_morph (single_morph elem)) ::
       (single_morph elem) :: (single_morph elem) :: (single_morph elem) ::
       (single_morph elem) :: (single_morph elem) :: (single_morph elem) :: elem :: accu
-    ) pool [new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); ])  in
+    ) pool [
+      new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry ();
+      new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry (); new_pool_entry ();
+        ])  in
 
 
   let rec improve pool =

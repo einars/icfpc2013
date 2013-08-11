@@ -106,14 +106,14 @@ printf('Unsolved <a href="simple.json">simple: %d</a>, <a href="fold.json">fold:
     , sizeof($probs->bonus)
 );
 echo '</div>';
-echo '<h2 id="fold">fold problems</h2>';
-print_problems($probs->fold, 'p-fold');
 echo '<h2 id="tfold">Tfold problems</h2>';
 print_problems($probs->tfold, 'p-tfold');
 echo '<h2 id="bonus">Bonus problems</h2>';
 print_problems($probs->bonus, 'p-bonus');
 echo '<h2 id="simple">Simple problems</h2>';
 print_problems($probs->simple, 'p-simple');
+echo '<h2 id="fold">fold problems</h2>';
+print_problems($probs->fold, 'p-fold');
 
 html_epilogue();
 
