@@ -79,11 +79,9 @@ let make_rotator () =
     hi := !hi + 1;
     if !hi = 10000 then (
       hi := 0;
-    );
-    if !hi = 1 then (
-      ks := !ks + 10;
+      ks := !ks + !hi;
       rot := (!rot + 1) mod 4;
-      Printf.printf "Solving (%dk) %c\r%!" !ks rot_chars.[ !rot ]
+      Printf.printf "Solving (%dm) %c\r%!" (!ks / 1000000) rot_chars.[ !rot ]
     );
 
 

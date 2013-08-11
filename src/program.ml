@@ -184,7 +184,7 @@ let rec expr_to_s = function
   | Xor (e1, e2) -> Printf.sprintf "(%s %s %s)" "xor" (expr_to_s e1) (expr_to_s e2)
   | Plus (e1, e2) -> Printf.sprintf "(%s %s %s)" "plus" (expr_to_s e1) (expr_to_s e2)
 
-let program_to_s (id, e) = Printf.sprintf "(lambda (%s) %s)" id (expr_to_s e)
+let to_s (id, e) = Printf.sprintf "(lambda (%s) %s)" id (expr_to_s e)
 
 module Bindings = Map.Make(String)
 
@@ -221,7 +221,7 @@ let eval p param =
   let bindings = Bindings.add id param Bindings.empty in
     (
       try eval_expr exp bindings
-      with Not_found -> Helpers.say "BORKTREE: %s" (program_to_s p); raise Not_found
+      with Not_found -> Helpers.say "BORKTREE: %s" (to_s p); raise Not_found
     )
 
 let eval_s p param = eval (parse p) param

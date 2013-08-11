@@ -146,8 +146,7 @@ let guess id program_source =
   else if status = "mismatch" then
     let input = Int64.of_string (List.nth values 0)
     and expected = Int64.of_string (List.nth values 1)
-    and actual = Int64.of_string (List.nth values 2)
-    in (input, expected, actual)
+    in (input, expected)
 
   else failwith (Printf.sprintf "Unknown status %s" status)
 
