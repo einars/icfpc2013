@@ -27,98 +27,129 @@ let default_guess_context =
   ; inside_fold = false
   ; allow_not = true
   ; allow_fold = true
-  ; allow_const = true
+  ; allow_const = false
   }
 
-let build_program desc =
+let rec process_random_stuff desc verify_fn : unit =
 
-  let choose_random l =
-    let len = List.length l in
-    List.nth l (Random.int len) in
+  let have_operator op =
+    let have = ref false in
+    for i = 0 to (Array.length desc.operators - 1) do
+      if desc.operators.(i) = op then have := true;
+    done;
+    !have in
 
-  let rec get_expr context ptr =
-    if ptr > desc.problem_size then raise Nuff;
+  let is_bonus_mode = have_operator "bonus" in
 
-    let n_ops = Array.length desc.operators in
-    let r = (Random.int (n_ops + 1)) - 1 in
-    let nptr = ptr + 1 in
 
-    let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
-    let context_skip_zero = { n_context with allow_zero = false } in
+  let build_program () =
 
-    (* Helpers.say "%d" r; *)
+    let choose_random l =
+      let len = List.length l in
+      List.nth l (Random.int len) in
 
-    let terms = [ (Identifier "x") ] in
-    let terms = if context.inside_fold then (Identifier "y1") :: (Identifier "y2") :: terms else terms in
-    let terms = if context.allow_const && context.allow_zero then E_0 :: terms else terms in
-    let terms = if context.allow_const then E_1 :: terms else terms in
+    let rec get_expr context ptr =
+      if ptr > desc.problem_size then raise Nuff;
 
-    if r = -1 then (choose_random terms, nptr)
+      let n_ops = Array.length desc.operators in
+      let adj = if ptr = 0 then 0 else 3 in
+      let r = (Random.int (n_ops + adj)) - adj in
+      let nptr = ptr + 1 in
 
-    else
+      let n_context = { context with allow_not = true; allow_const = true } in (* reset allow_not status *)
+      let context_skip_zero = { n_context with allow_zero = false } in
 
-    let op = desc.operators.(r) in
+      (* Helpers.say "%d" r; *)
 
-    if op = "not" && (not context.allow_not) then get_expr context ptr else
-    if op = "fold" && (not context.allow_fold) then get_expr context ptr else
-    if op = "fold" && (context.inside_fold) then get_expr context ptr else
-    if op = "tfold" && (not context.allow_fold) then get_expr context ptr else
-    if op = "tfold" && (context.inside_fold) then get_expr context ptr else
+      let terms = [ (Identifier "x") ] in
+      let terms = if context.inside_fold then (Identifier "y1") :: (Identifier "y2") :: terms else terms in
+      let terms = if context.allow_const && context.allow_zero then E_0 :: terms else terms in
+      let terms = if context.allow_const then E_1 :: terms else terms in
 
-    if op = "if0" then
-      let e1, nptr = get_expr {n_context with allow_const = false } nptr in
-      let e2, nptr = get_expr n_context nptr in
-      let e3, nptr = get_expr n_context nptr in
-      If0 (e1, e2, e3), nptr
-    else
-      if op = "not" then let e1, nptr = get_expr { n_context with allow_not = false } nptr in (Not e1), nptr
-    else if op = "fold" then
-        let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
-        let e2, nptr = get_expr { n_context with allow_fold = false } nptr in
-        let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
-        Fold (e1, e2, "y1", "y2", e3), nptr
-    else if op = "tfold" then
-        let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
-        let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
-        Fold (e1, E_0, "y1", "y2", e3), nptr
-    else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr in (Shl1 e1), nptr
-    else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr in (Shr1 e1), nptr
-    else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr in (Shr4 e1), nptr
-    else if op = "shr16" then let e1, nptr = get_expr context_skip_zero nptr in (Shr16 e1), nptr
-    else if op = "and" then
-      let e1, nptr = get_expr context_skip_zero nptr in
-      let e2, nptr = get_expr context_skip_zero nptr in
-      And (e1, e2), nptr
-    else if op = "or" then
-      let e1, nptr = get_expr context_skip_zero nptr in
-      let e2, nptr = get_expr context_skip_zero nptr in
-      Or (e1, e2), nptr
-    else if op = "xor" then
-      let e1, nptr = get_expr context_skip_zero nptr in
-      let e2, nptr = get_expr context_skip_zero nptr in
-      Xor (e1, e2), nptr
-    else if op = "plus" then
-      let e1, nptr = get_expr context_skip_zero nptr in
-      let e2, nptr = get_expr context_skip_zero nptr in
-      Plus (e1, e2), nptr
-    else if op = "bonus" then raise Nuff
-    else ( Helpers.say "What is %s?" op; raise Nuff )
+      if r < 0 then (choose_random terms, nptr)
 
+      else
+
+      let op = desc.operators.(r) in
+      let op = if is_bonus_mode && ptr = 0 then "if0" else op in
+
+      if op = "not" && (not context.allow_not) then get_expr context ptr else
+      if op = "fold" && (not context.allow_fold) then get_expr context ptr else
+      if op = "tfold" && (not context.allow_fold) then get_expr context ptr else
+      if op = "fold" && nptr > (n_ops - 3) then get_expr context ptr else
+      if op = "tfold" && nptr > (n_ops - 3) then get_expr context ptr else
+
+      if op = "if0" then
+        let e1, nptr = get_expr {n_context with allow_const = false } nptr in
+        let e2, nptr = get_expr n_context nptr in
+        let e3, nptr = get_expr n_context nptr in
+        If0 (e1, e2, e3), nptr
+      else
+        if op = "not" then let e1, nptr = get_expr { n_context with allow_not = false } nptr in (Not e1), nptr
+      else if op = "fold" then
+          let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
+          let e2, nptr = get_expr { n_context with allow_fold = false } nptr in
+          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+          Fold (e1, e2, "y1", "y2", e3), nptr
+      else if op = "tfold" then
+          let e1, nptr = get_expr { n_context with allow_fold = false } nptr in
+          let e3, nptr = get_expr { n_context with inside_fold = true; allow_fold = false } nptr in
+          Fold (e1, E_0, "y1", "y2", e3), nptr
+      else if op = "shl1" then let e1, nptr = get_expr context_skip_zero nptr in (Shl1 e1), nptr
+      else if op = "shr1" then let e1, nptr = get_expr context_skip_zero nptr in (Shr1 e1), nptr
+      else if op = "shr4" then let e1, nptr = get_expr context_skip_zero nptr in (Shr4 e1), nptr
+      else if op = "shr16" then let e1, nptr = get_expr context_skip_zero nptr in (Shr16 e1), nptr
+      else if op = "and" then
+        let e1, nptr = get_expr context_skip_zero nptr in
+        let e2, nptr = get_expr context_skip_zero nptr in
+        And (e1, e2), nptr
+      else if op = "or" then
+        let e1, nptr = get_expr context_skip_zero nptr in
+        let e2, nptr = get_expr context_skip_zero nptr in
+        Or (e1, e2), nptr
+      else if op = "xor" then
+        let e1, nptr = get_expr context_skip_zero nptr in
+        let e2, nptr = get_expr context_skip_zero nptr in
+        Xor (e1, e2), nptr
+      else if op = "plus" then
+        let e1, nptr = get_expr context_skip_zero nptr in
+        let e2, nptr = get_expr context_skip_zero nptr in
+        Plus (e1, e2), nptr
+      else if op = "bonus" then get_expr context nptr
+      else ( Helpers.say "What is %s?" op; raise Nuff )
+
+    in
+
+    let expr, expr_size =
+    if is_bonus_mode then begin
+      (* Helpers.say "Running in bonus mode"; *)
+      get_expr { default_guess_context with allow_fold = false } 0
+    end else begin
+      (* Helpers.say "Running in classic mode"; *)
+      get_expr default_guess_context 0
+    end in
+    (* Helpers.say "%s" (Program.expr_to_s expr); *)
+
+    if expr_size == 1 then (
+      (* Helpers.say "uncool (%d, want %d) %s" expr_size size (Program.expr_to_s expr); *)
+      raise Nuff;
+    );
+    "x", expr in
+
+
+
+  let rot = Helpers.make_rotator () in
+  if is_bonus_mode then Helpers.say "Running in bonus mode";
+  if not is_bonus_mode then Helpers.say "Running in normal mode";
+  let rec loop () =
+    (try
+      verify_fn ( build_program () );
+      rot ();
+    with Nuff -> ());
+    loop ()
   in
-  let expr, expr_size = get_expr default_guess_context 0 in
-  if expr_size == 1 then (
-    (* Helpers.say "uncool (%d, want %d) %s" expr_size size (Program.expr_to_s expr); *)
-    raise Nuff;
-  );
-  "x", expr
+  loop ()
 
-
-let good_random_guess desc =
-
-  let rec stumble () =
-    try build_program desc with _ -> stumble ()
-  in
-  stumble ()
 
 
 
@@ -132,6 +163,10 @@ let suitable_first_inputs () =
     ; 0xf000000000000000L
     ; 0x1111111111111111L
     ; 0x0101010101010101L
+    ; 0x787078f0e0c00300L
+    ; Random.int64 0x7ffffffffffffffeL
+    ; Random.int64 0x7ffffffffffffffeL
+    ; Random.int64 0x7ffffffffffffffeL
     ]
 
 
@@ -151,15 +186,6 @@ let improve_via_server_guess desc guess =
   if had <> act then failwith "EVALFAIL, please check";
   n, r
 
-
-let rec process_random_stuff desc verify_fn : unit =
-  let rot = Helpers.make_rotator () in
-  let rec loop () =
-    verify_fn ( good_random_guess desc );
-    rot ();
-    loop ()
-  in
-  loop ()
 
 
 let do_your_thing desc =
