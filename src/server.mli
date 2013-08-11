@@ -22,5 +22,5 @@ exception Eval_failed of string
 exception Solved of string*string
 
 val get_eval : string -> int64 list -> int64 list
-val guess : string -> string -> int64 * int64
+val guess : string -> string -> int64 * int64 * int64
 

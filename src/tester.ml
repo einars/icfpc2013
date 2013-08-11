@@ -14,7 +14,7 @@ let assert_eq s1 s2 =
 let assert_eq_parse prg parsed =
   let my_parsed = Program.parse prg in
   if my_parsed <> parsed then (
-    Printf.printf "Parse failed:\nInp: %s\nExp: %s\nGot: %s\n%!" prg (Program.to_s parsed) (Program.to_s my_parsed);
+    Printf.printf "Parse failed:\nInp: %s\nExp: %s\nGot: %s\n%!" prg (Program.program_to_s parsed) (Program.program_to_s my_parsed);
     raise Assertion_failed
   )
 
@@ -57,7 +57,7 @@ let run_tests () =
     assert_eq_parse sample_program_1 sample_parsed_1;
     assert_eq_parse sample_program_2 sample_parsed_2;
     assert_eq_parse sample_program_3 sample_parsed_3;
-    assert_eq complicated_prg (Program.to_s (Program.parse complicated_prg));
+    assert_eq complicated_prg (Program.program_to_s (Program.parse complicated_prg));
 
     (* eval test *)
     assert_eval "(lambda (x) (not (or (if0 x x 1) x)))" 0x2000000000000000L 0xDFFFFFFFFFFFFFFEL;
