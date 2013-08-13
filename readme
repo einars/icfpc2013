@@ -1,1 +1,11 @@
-ICFP-2013
+ICFPC-2013. Raging mushrooms team
+
+This is the OCaml (and web/php scoreboard) part of out code.
+The Lisp solver might (or might not) be found somewhere else.
+
+This is probably quite useless for you or anyone else: all the cool stuff is in
+the commit history (or even lost between the commits): the #master branch shows
+only the latest experiment (a fairly reasonably working genetic approach).
+
+The raging mushrooms of 2013 were Edmunds Cers, Arturs Grebstelis and Einar Lielmanis.
+

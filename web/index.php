@@ -47,7 +47,7 @@ if ($requested_json == 'tfold.json') {
     dump_json($probs->tfold);
 }
 if ($requested_json == 'bonus.json') {
-    $size = $_REQUEST['size'];
+    $size = @$_REQUEST['size'];
     $out = $probs->bonus;
     if ($size) {
         if (strpos($size, 'r') !== false) {
@@ -196,7 +196,7 @@ function exploderate($js)
     );
     foreach($js as $p) {
         $problems->all[] = $p;
-        if ($p['timeLeft'] and ! $p['solved']) {
+        if (@$p['timeLeft'] and ! $p['solved']) {
             $problems->in_progress[] = $p;
             unset($p['solved']);
         }
@@ -371,15 +371,6 @@ function html_epilogue()
 function dump_json($probs)
 {
     Header('Content-type: text/json');
-    if (substr($probs[0]['id'], 0, 3) == '2TU') {
-        array_shift($probs);
-    }
-    if (substr($probs[0]['id'], 0, 3) == '3z3') {
-        array_shift($probs);
-    }
-    if (substr($probs[0]['id'], 0, 3) == '4Te') {
-        array_shift($probs);
-    }
     echo json_encode($probs);
     exit;
 }
